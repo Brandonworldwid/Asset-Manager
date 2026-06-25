@@ -36,7 +36,7 @@ import {
   Library
 } from 'lucide-react';
 
-import { Asset, Category } from './types';
+import { Asset, Category, getAssetGroupKey } from './types';
 import { DEFAULT_CATEGORIES, INITIAL_ASSETS, MEGASCANS_SUBCATEGORIES } from './data/mockAssets';
 import Sidebar from './components/Sidebar';
 import DirectoryScanner from './components/DirectoryScanner';
@@ -358,15 +358,21 @@ export default function App() {
   };
 
   const handleBatchDelete = () => {
-    setAssets((prev) => prev.filter((a) => !selectedAssetIds.includes(a.id)));
-    notify(`Deleted ${selectedAssetIds.length} assets from library and local drive.`);
+    const selectedAssets = assets.filter((a) => selectedAssetIds.includes(a.id));
+    const groupKeysToDelete = new Set(selectedAssets.map((a) => getAssetGroupKey(a)));
+    
+    setAssets((prev) => prev.filter((a) => !groupKeysToDelete.has(getAssetGroupKey(a))));
+    notify(`Deleted all variants for ${selectedAssetIds.length} selected assets.`);
     setSelectedAssetIds([]);
     setSelectedAssetId(null);
     setShowBatchEditModal(false);
   };
 
   const handleBatchRemoveFromManager = () => {
-    const toRemove = assets.filter((a) => selectedAssetIds.includes(a.id));
+    const selectedAssets = assets.filter((a) => selectedAssetIds.includes(a.id));
+    const groupKeysToRemove = new Set(selectedAssets.map((a) => getAssetGroupKey(a)));
+    const toRemove = assets.filter((a) => groupKeysToRemove.has(getAssetGroupKey(a)));
+    
     setEvictedAssetPaths((prev) => {
       const next = [...prev];
       toRemove.forEach((a) => {
@@ -376,7 +382,7 @@ export default function App() {
       });
       return next;
     });
-    setAssets((prev) => prev.filter((a) => !selectedAssetIds.includes(a.id)));
+    setAssets((prev) => prev.filter((a) => !groupKeysToRemove.has(getAssetGroupKey(a))));
     notify(`Removed ${toRemove.length} assets from manager & excluded from future scans.`);
     setSelectedAssetIds([]);
     setSelectedAssetId(null);
@@ -642,7 +648,7 @@ export default function App() {
             <AssetDetails
               asset={selectedAsset}
               allAssets={assets}
-              categories={categories}
+              categories={[...categories, ...MEGASCANS_SUBCATEGORIES.map(s => ({ ...s, icon: 'Folder' }))]}
               onClose={() => {
                 setSelectedAssetId(null);
                 setSelectedAssetIds([]);
@@ -653,6 +659,7 @@ export default function App() {
               onDeleteAsset={(id) => setResolutionSelectionAction({ type: 'delete', assetIds: [id] })}
               onRemoveFromManager={(id) => setResolutionSelectionAction({ type: 'remove', assetIds: [id] })}
               onMoveAssetPath={handleMoveAssetPath}
+              notify={notify}
             />
           )}
         </AnimatePresence>
@@ -1677,7 +1684,8 @@ export default function App() {
                         // Need to find all variants of the selected assets that match this resolution
                         const selectedAssets = assets.filter(a => resolutionSelectionAction.assetIds.includes(a.id));
                         const groupKeys = new Set(selectedAssets.map(a => getAssetGroupKey(a)));
-                        const targetIds = assets.filter(a => groupKeys.has(getAssetGroupKey(a)) && a.resolution === res).map(a => a.id);
+                        const assetsInGroupWithRes = assets.filter(a => groupKeys.has(getAssetGroupKey(a)) && a.resolution === res);
+                        const targetIds = assetsInGroupWithRes.map(a => a.id);
                         
                         if (resolutionSelectionAction.type === 'delete') {
                            setAssets(prev => prev.filter(a => !targetIds.includes(a.id)));

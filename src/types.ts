@@ -11,6 +11,7 @@ export interface TextureFile {
   type: 'Albedo' | 'Normal' | 'Roughness' | 'Displacement' | 'AO' | 'Opacity' | 'Cavity';
   resolution: '1k' | '2k' | '4k' | '8k';
   size: string;
+  rawSize: number;
 }
 
 export interface Asset {

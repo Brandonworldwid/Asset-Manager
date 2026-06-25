@@ -41,6 +41,7 @@ interface AssetDetailsProps {
   onDeleteAsset: (id: string) => void;
   onRemoveFromManager: (id: string) => void;
   onMoveAssetPath: (id: string, newPath: string) => void;
+  notify: (msg: string) => void;
 }
 
 export default function AssetDetails({
@@ -54,6 +55,7 @@ export default function AssetDetails({
   onDeleteAsset,
   onRemoveFromManager,
   onMoveAssetPath,
+  notify,
 }: AssetDetailsProps) {
   const [compressing, setCompressing] = useState(false);
   const [compressionProgress, setCompressionProgress] = useState(0);
@@ -68,6 +70,8 @@ export default function AssetDetails({
   // Dialog/Modal states
   const [showMoveCategoryModal, setShowMoveCategoryModal] = useState(false);
   const [showMovePathModal, setShowMovePathModal] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showRemoveConfirm, setShowRemoveConfirm] = useState(false);
 
   // Virtual File Explorer states
   const [showExplorerModal, setShowExplorerModal] = useState(false);
@@ -526,14 +530,27 @@ export default function AssetDetails({
           <FileText className="w-4 h-4 text-blue-400" />
           <h2 className="font-sans font-bold text-xs uppercase tracking-widest text-white">Asset Information</h2>
         </div>
-        <button
-          onClick={onClose}
-          className="p-1.5 rounded text-gray-400 hover:text-white hover:bg-white/5 transition-colors"
-          title="Collapse Panel"
-          id="close-drawer-btn"
-        >
-          <X className="w-4 h-4" />
-        </button>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={() => {
+              navigator.clipboard.writeText(asset.scannedPath);
+              notify(`Path copied to clipboard!`);
+            }}
+            className="p-1.5 rounded text-gray-400 hover:text-white hover:bg-white/5 transition-colors"
+            title="Copy Asset Path"
+            id="copy-path-btn"
+          >
+            <FolderOpen className="w-4 h-4" />
+          </button>
+          <button
+            onClick={onClose}
+            className="p-1.5 rounded text-gray-400 hover:text-white hover:bg-white/5 transition-colors"
+            title="Collapse Panel"
+            id="close-drawer-btn"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
       </div>
 
       {/* Drawer Core Content */}
@@ -993,7 +1010,7 @@ export default function AssetDetails({
           </h4>
           <div className="flex gap-2">
             <button
-              onClick={() => onDeleteAsset(asset.id)}
+              onClick={() => setShowDeleteConfirm(true)}
               className="flex-1 py-2 px-3 bg-rose-600 hover:bg-rose-700 active:bg-rose-800 text-white text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-md shadow-rose-600/10"
               id="details-delete-asset-btn"
             >
@@ -1001,7 +1018,7 @@ export default function AssetDetails({
               <span>Delete Drive</span>
             </button>
             <button
-              onClick={() => onRemoveFromManager(asset.id)}
+              onClick={() => setShowRemoveConfirm(true)}
               className="flex-1 py-2 px-3 bg-[#222] hover:bg-[#2A2A2A] text-amber-400 border border-amber-500/20 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5"
               id="details-remove-manager-btn"
             >
@@ -1162,26 +1179,44 @@ export default function AssetDetails({
                 {categories
                   .filter((c) => c.id !== 'cat-all')
                   .map((cat) => {
-                    const isAssociated = draftCategories.includes(cat.id);
-                    const isModified = isCategoryModified(cat.id);
-                    return (
-                      <label
-                        key={cat.id}
-                        className="flex items-center justify-between text-xs text-gray-200 hover:text-white cursor-pointer select-none py-1.5 px-2 hover:bg-white/5 rounded-lg transition-colors border border-transparent hover:border-white/5"
-                      >
-                        <div className="flex items-center gap-2.5">
-                          <input
-                            type="checkbox"
-                            checked={isAssociated}
-                            onChange={(e) => handleCategoryCheckboxChange(cat.id, e.target.checked)}
-                            className="rounded border-white/10 bg-[#0F0F0F] text-blue-600 focus:ring-blue-500 w-4 h-4 cursor-pointer"
-                          />
-                          <span className="font-semibold">{cat.name}</span>
+                    const renderSubcategory = (sub: any, depth = 0) => {
+                      const isAssociated = draftCategories.includes(sub.id);
+                      return (
+                        <div key={sub.id} style={{ paddingLeft: `${depth * 16}px` }}>
+                          <label className="flex items-center justify-between text-xs text-gray-200 hover:text-white cursor-pointer select-none py-1.5 px-2 hover:bg-white/5 rounded-lg transition-colors border border-transparent hover:border-white/5">
+                            <div className="flex items-center gap-2.5">
+                              <input
+                                type="checkbox"
+                                checked={isAssociated}
+                                onChange={(e) => handleCategoryCheckboxChange(sub.id, e.target.checked)}
+                                className="rounded border-white/10 bg-[#0F0F0F] text-blue-600 focus:ring-blue-500 w-4 h-4 cursor-pointer"
+                              />
+                              <span className="font-semibold">{sub.name}</span>
+                            </div>
+                          </label>
+                          {sub.subcategories && sub.subcategories.map((child: any) => renderSubcategory(child, depth + 1))}
                         </div>
-                        {isModified && (
-                          <span className="text-amber-400 text-xs font-bold animate-pulse" title="Modified">*</span>
-                        )}
-                      </label>
+                      );
+                    };
+
+                    return (
+                      <div key={cat.id}>
+                        <label className="flex items-center justify-between text-xs text-gray-200 hover:text-white cursor-pointer select-none py-1.5 px-2 hover:bg-white/5 rounded-lg transition-colors border border-transparent hover:border-white/5">
+                          <div className="flex items-center gap-2.5">
+                            <input
+                              type="checkbox"
+                              checked={draftCategories.includes(cat.id)}
+                              onChange={(e) => handleCategoryCheckboxChange(cat.id, e.target.checked)}
+                              className="rounded border-white/10 bg-[#0F0F0F] text-blue-600 focus:ring-blue-500 w-4 h-4 cursor-pointer"
+                            />
+                            <span className="font-semibold">{cat.name}</span>
+                          </div>
+                          {isCategoryModified(cat.id) && (
+                            <span className="text-amber-400 text-xs font-bold animate-pulse" title="Modified">*</span>
+                          )}
+                        </label>
+                        {cat.subcategories && cat.subcategories.map((sub: any) => renderSubcategory(sub, 1))}
+                      </div>
                     );
                   })}
               </div>

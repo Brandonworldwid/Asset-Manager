@@ -15,7 +15,7 @@ import {
   Info
 } from 'lucide-react';
 import { Asset, AssetType } from '../types';
-import { VIRTUAL_DOWNLOADS_ASSETS } from '../data/mockAssets';
+import { VIRTUAL_DOWNLOADS_ASSETS, MEGASCANS_SUBCATEGORIES } from '../data/mockAssets';
 
 interface DirectoryScannerProps {
   libraryAssets: Asset[];
@@ -226,19 +226,19 @@ export default function DirectoryScanner({ libraryAssets, evictedAssetPaths = []
         
         // Quixel textures usually end with suffixes like _Albedo, _Normal, _Roughness, _AO, _Displacement, _Opacity
         if (lowerName.includes('albedo') || lowerName.includes('diffuse')) {
-          textures.push({ name: f.name, type: 'Albedo', resolution: '2k', size: formatSize(f.size) });
+          textures.push({ name: f.name, type: 'Albedo', resolution: '2k', size: formatSize(f.size), rawSize: f.size });
           isMegascan = true;
         } else if (lowerName.includes('normal')) {
-          textures.push({ name: f.name, type: 'Normal', resolution: '2k', size: formatSize(f.size) });
+          textures.push({ name: f.name, type: 'Normal', resolution: '2k', size: formatSize(f.size), rawSize: f.size });
           isMegascan = true;
         } else if (lowerName.includes('roughness') || lowerName.includes('specular')) {
-          textures.push({ name: f.name, type: 'Roughness', resolution: '2k', size: formatSize(f.size) });
+          textures.push({ name: f.name, type: 'Roughness', resolution: '2k', size: formatSize(f.size), rawSize: f.size });
         } else if (lowerName.includes('displacement') || lowerName.includes('height')) {
-          textures.push({ name: f.name, type: 'Displacement', resolution: '2k', size: formatSize(f.size) });
+          textures.push({ name: f.name, type: 'Displacement', resolution: '2k', size: formatSize(f.size), rawSize: f.size });
         } else if (lowerName.includes('ao') || lowerName.includes('ambientocclusion')) {
-          textures.push({ name: f.name, type: 'AO', resolution: '2k', size: formatSize(f.size) });
+          textures.push({ name: f.name, type: 'AO', resolution: '2k', size: formatSize(f.size), rawSize: f.size });
         } else if (lowerName.includes('opacity') || lowerName.includes('alpha')) {
-          textures.push({ name: f.name, type: 'Opacity', resolution: '2k', size: formatSize(f.size) });
+          textures.push({ name: f.name, type: 'Opacity', resolution: '2k', size: formatSize(f.size), rawSize: f.size });
         }
 
         if (lowerName.endsWith('.fbx')) {
@@ -348,8 +348,49 @@ export default function DirectoryScanner({ libraryAssets, evictedAssetPaths = []
           extractedTags = dirName.split('_').filter(t => t.length > 2 && !['asset', '3d', '2k', '4k', '8k', '1k'].includes(t));
         }
 
-        if (metaData?.categories && Array.isArray(metaData.categories)) {
+        const categoryIds: string[] = ['cat-megascans'];
+        
+        // Helper to normalize names for comparison
+        const normalize = (name: string) => name.toLowerCase().replace(/s$/, '').replace(/\s+/g, '-');
+
+        // Recursive function to find category IDs
+        const findCategoryIds = (obj: any, available: any[], parentId: string | null = null) => {
+          for (const key in obj) {
+            const normalizedKey = normalize(key);
+            
+            // Try to find a matching category
+            const match = available.find(c => {
+               const normalizedCName = normalize(c.name);
+               return normalizedCName === normalizedKey || 
+                      (parentId && normalize(parentId + '-' + c.name) === normalize(parentId + '-' + key));
+            });
+
+            if (match) {
+              categoryIds.push(match.id);
+              if (match.subcategories && Object.keys(obj[key]).length > 0) {
+                findCategoryIds(obj[key], match.subcategories, match.id);
+              }
+            } else {
+              // If no match found, continue searching in subcategories if possible
+              if (available.length > 0) {
+                 findCategoryIds(obj[key], available.flatMap(c => c.subcategories || []), parentId);
+              }
+            }
+          }
+        };
+
+        if (metaData?.assetCategories) {
+          findCategoryIds(metaData.assetCategories, MEGASCANS_SUBCATEGORIES);
+        } else if (metaData?.categories && Array.isArray(metaData.categories)) {
           extractedTags = [...extractedTags, ...metaData.categories];
+          
+          // Basic mapping logic
+          if (metaData.categories.includes('3dplant')) {
+            categoryIds.push('sub-3d-plants');
+            if (metaData.categories.includes('climber')) {
+               categoryIds.push('sub-3d-plants-climber');
+            }
+          }
         }
 
         // Map resolution
@@ -422,7 +463,7 @@ export default function DirectoryScanner({ libraryAssets, evictedAssetPaths = []
                return false;
            });
 
-           const size = resTextures.reduce((acc, t) => acc + t.size, 0) || totalSize;
+           const size = resTextures.reduce((acc, t) => acc + (t.rawSize || 0), 0) || totalSize;
 
            const parsedAssetItem: Asset = {
              id: `${generatedId}-${res}`,
@@ -433,7 +474,7 @@ export default function DirectoryScanner({ libraryAssets, evictedAssetPaths = []
              resolution: res,
              thumbnailUrl: thumb,
              tags: Array.from(new Set(extractedTags)),
-             categories: [`cat-${assetType === '3dplant' ? 'plants' : assetType === '3d' ? '3d' : assetType === 'surface' ? 'surfaces' : 'atlases'}`],
+             categories: categoryIds,
              scannedPath: `/Local/Scanned/${dirName}`,
              dateAdded: new Date().toISOString(),
              description: desc,
