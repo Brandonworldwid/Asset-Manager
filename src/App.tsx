@@ -37,7 +37,7 @@ import {
 } from 'lucide-react';
 
 import { Asset, Category } from './types';
-import { DEFAULT_CATEGORIES, INITIAL_ASSETS } from './data/mockAssets';
+import { DEFAULT_CATEGORIES, INITIAL_ASSETS, MEGASCANS_SUBCATEGORIES } from './data/mockAssets';
 import Sidebar from './components/Sidebar';
 import DirectoryScanner from './components/DirectoryScanner';
 import AssetGrid from './components/AssetGrid';
@@ -509,22 +509,22 @@ export default function App() {
        // add Mega Scans category
        setCategories(prev => {
            if (!prev.find(c => c.id === 'cat-megascans')) {
-               return [...prev, { id: 'cat-megascans', name: 'Mega Scans', icon: 'Box', subcategories: [] }];
+               return [...prev, { id: 'cat-megascans', name: 'Megascans', icon: 'Box', subcategories: MEGASCANS_SUBCATEGORIES }];
            }
            return prev;
        });
        setDraftCategoriesList(prev => {
            if (!prev.find(c => c.id === 'cat-megascans')) {
-               return [...prev, { id: 'cat-megascans', name: 'Mega Scans', icon: 'Box', subcategories: [] }];
+               return [...prev, { id: 'cat-megascans', name: 'Megascans', icon: 'Box', subcategories: MEGASCANS_SUBCATEGORIES }];
            }
            return prev;
        });
-       notify("Mega Scans workspace created");
+       notify("Megascans workspace created");
     } else {
        // remove Mega Scans category
        setCategories(prev => prev.filter(c => c.id !== 'cat-megascans'));
        setDraftCategoriesList(prev => prev.filter(c => c.id !== 'cat-megascans'));
-       notify("Mega Scans workspace removed");
+       notify("Megascans workspace removed");
     }
   };
 

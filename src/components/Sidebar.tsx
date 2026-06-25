@@ -135,15 +135,28 @@ export default function Sidebar({
     }
   };
 
-  const toggleCat = (id: string) => {
-    setExpandedCategories(prev => ({
-      ...prev,
-      [id]: !prev[id]
-    }));
+  const toggleCat = (id: string, siblingIds: string[] = []) => {
+    setExpandedCategories(prev => {
+      const isExpanding = !prev[id];
+      const next = { ...prev };
+      
+      if (isExpanding) {
+        // Collapse siblings
+        siblingIds.forEach(siblingId => {
+          if (siblingId !== id) {
+            next[siblingId] = false;
+          }
+        });
+      }
+      
+      next[id] = isExpanding;
+      return next;
+    });
   };
 
   // Helper component for recursive subcategories rendering
   const RecursiveSubcategoryList = ({ subcategories, parentId, depth = 1 }: { subcategories: any[], parentId: string, depth?: number }) => {
+    const siblingIds = subcategories.map(s => s.id);
     return (
       <motion.div
         initial={{ height: 0, opacity: 0 }}
@@ -158,12 +171,10 @@ export default function Sidebar({
           const hasChildren = sub.subcategories && sub.subcategories.length > 0;
           return (
             <div key={sub.id} className="w-full">
-              <button
-                onClick={(e) => {
-                  if (hasChildren && e.clientX < 100) { // Naive click target, or just toggle and select
-                    toggleCat(sub.id);
-                  }
+              <div
+                onClick={() => {
                   onSelectCategory(sub.id);
+                  if (hasChildren) toggleCat(sub.id, siblingIds);
                 }}
                 className={`w-full flex items-center justify-between rounded px-2 py-1 text-left text-[11px] border transition-all cursor-pointer ${
                   isSubActive
@@ -174,9 +185,10 @@ export default function Sidebar({
                 <div className="flex items-center gap-1.5 truncate">
                   {hasChildren ? (
                     <button
+                      type="button"
                       onClick={(e) => {
                         e.stopPropagation();
-                        toggleCat(sub.id);
+                        toggleCat(sub.id, siblingIds);
                       }}
                       className="p-0.5 hover:text-white"
                     >
@@ -187,7 +199,7 @@ export default function Sidebar({
                   )}
                   <span className="truncate">{sub.name}</span>
                 </div>
-              </button>
+              </div>
               
               <AnimatePresence initial={false}>
                 {hasChildren && isExpanded && (
@@ -390,7 +402,8 @@ export default function Sidebar({
                             type="button"
                             onClick={(e) => {
                               e.stopPropagation();
-                              setExpandedCategories(prev => ({ ...prev, [cat.id]: !prev[cat.id] }));
+                              const topLevelIds = categories.map(c => c.id);
+                              toggleCat(cat.id, topLevelIds);
                             }}
                             className="p-0.5 rounded text-gray-500 hover:text-white hover:bg-white/5 transition-colors cursor-pointer"
                           >
@@ -420,7 +433,15 @@ export default function Sidebar({
                           id={`edit-cat-name-${cat.id}`}
                         />
                       ) : (
-                        <span className="font-medium truncate">{cat.name}</span>
+                        <span className="font-medium truncate" onClick={() => {
+                           if (!isEdit) {
+                             onSelectCategory(cat.id);
+                             if (hasSubcategories) {
+                               const topLevelIds = categories.map(c => c.id);
+                               toggleCat(cat.id, topLevelIds);
+                             }
+                           }
+                        }}>{cat.name}</span>
                       )}
                     </div>
 
