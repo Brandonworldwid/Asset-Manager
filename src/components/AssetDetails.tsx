@@ -66,8 +66,6 @@ export default function AssetDetails({
   const [rescanLog, setRescanLog] = useState<string[]>([]);
 
   // Dialog/Modal states
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [showRemoveConfirm, setShowRemoveConfirm] = useState(false);
   const [showMoveCategoryModal, setShowMoveCategoryModal] = useState(false);
   const [showMovePathModal, setShowMovePathModal] = useState(false);
 
@@ -995,7 +993,7 @@ export default function AssetDetails({
           </h4>
           <div className="flex gap-2">
             <button
-              onClick={() => setShowDeleteConfirm(true)}
+              onClick={() => onDeleteAsset(asset.id)}
               className="flex-1 py-2 px-3 bg-rose-600 hover:bg-rose-700 active:bg-rose-800 text-white text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-md shadow-rose-600/10"
               id="details-delete-asset-btn"
             >
@@ -1003,7 +1001,7 @@ export default function AssetDetails({
               <span>Delete Drive</span>
             </button>
             <button
-              onClick={() => setShowRemoveConfirm(true)}
+              onClick={() => onRemoveFromManager(asset.id)}
               className="flex-1 py-2 px-3 bg-[#222] hover:bg-[#2A2A2A] text-amber-400 border border-amber-500/20 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5"
               id="details-remove-manager-btn"
             >

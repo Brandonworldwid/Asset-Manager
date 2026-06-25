@@ -126,34 +126,99 @@ export default function DirectoryScanner({ libraryAssets, evictedAssetPaths = []
     // Parse the files to see if we can find typical textures or folder names
     const fileList = Array.from(files) as any[];
     
-    // Group files by their parent directory name
     const dirMap: Record<string, File[]> = {};
+    const jsonMap: Record<string, any> = {};
+
+    // 1. Identify JSON roots
+    for (const file of fileList) {
+      const lowerName = file.name.toLowerCase();
+      if (lowerName.endsWith('.json') && !lowerName.includes('package')) {
+        const parts = file.webkitRelativePath.split('/');
+        parts.pop(); // remove the json file name
+        const dirPath = parts.join('/');
+        try {
+          const text = await file.text();
+          const data = JSON.parse(text);
+          if (data && (data.semanticTags || data.models || data.pack || data.uasset || data.billboards)) {
+             jsonMap[dirPath] = data;
+             dirMap[dirPath] = [];
+          }
+        } catch(e) {}
+      }
+    }
+
+    // 2. Assign files to their roots
     fileList.forEach(file => {
-      // webkitRelativePath looks like: "parent_folder/sub_folder/file.jpg"
-      const pathParts = file.webkitRelativePath.split('/');
-      if (pathParts.length > 1) {
-        // Use the immediate parent of the file as the asset folder
-        const parentDir = pathParts[pathParts.length - 2];
-        if (!dirMap[parentDir]) {
-          dirMap[parentDir] = [];
-        }
-        dirMap[parentDir].push(file);
+      const path = file.webkitRelativePath;
+      let assigned = false;
+      let matchedRoot: string | null = null;
+      
+      // Find the longest matching root
+      for (const root of Object.keys(dirMap)) {
+         if (root === '' || path.startsWith(root + '/')) {
+            if (matchedRoot === null || root.length >= matchedRoot.length) {
+               matchedRoot = root;
+            }
+         }
+      }
+      
+      if (matchedRoot !== null) {
+         dirMap[matchedRoot].push(file);
+         assigned = true;
+      }
+      
+      // Fallback for files not in any Megascans JSON root
+      if (!assigned) {
+         const pathParts = path.split('/');
+         if (pathParts.length > 1) {
+            // Group by the top-level directory inside the selected folder
+            // e.g. SelectedFolder/Asset/file.txt -> group by "Asset"
+            const parentDir = pathParts[1] || pathParts[0]; 
+            // wait, if path is "SelectedRoot/file.txt", pathParts.length is 2. pathParts[1] is "file.txt" which is wrong.
+            // If length > 2, e.g. "SelectedRoot/AssetDir/file.txt", parent is "AssetDir" (pathParts[1]).
+            // If they selected the asset dir directly, "AssetDir/file.txt", pathParts is ["AssetDir", "file.txt"], length 2, group by "AssetDir".
+            const groupDir = pathParts.length > 2 ? pathParts[1] : pathParts[0];
+            if (!dirMap[groupDir]) {
+               dirMap[groupDir] = [];
+            }
+            dirMap[groupDir].push(file);
+         }
       }
     });
 
-    setScanLogs(prev => [...prev, `Found ${Object.keys(dirMap).length} subdirectories. Analyzing structures...`]);
+    setScanLogs(prev => [...prev, `Found ${Object.keys(dirMap).length} parsed subdirectories. Analyzing structures...`]);
 
     const parsedAssets: Asset[] = [];
 
-    // Loop through directories asynchronously to allow reading JSON metadata
-    for (const [dirName, dirFiles] of Object.entries(dirMap)) {
-      // Check if this directory looks like a Megascan
+    // Loop through directories
+    for (const [dirPath, dirFiles] of Object.entries(dirMap)) {
+      const dirName = dirPath.split('/').pop() || dirPath;
       const textures: any[] = [];
       let isMegascan = false;
       let hasMesh = false;
       let meshFormat: any = 'FBX';
       let assetType: AssetType = '3d';
       let resolution: '1k' | '2k' | '4k' | '8k' = '2k';
+
+      // Look up our parsed JSON data
+      let metaData = jsonMap[dirPath];
+      if (!metaData) {
+        // Fallback: look for a JSON metadata file if we used fallback grouping
+        const jsonFile = dirFiles.find(f => f.name.toLowerCase().endsWith('.json') && !f.name.toLowerCase().includes('package'));
+        if (jsonFile) {
+          try {
+            const jsonText = await jsonFile.text();
+            metaData = JSON.parse(jsonText);
+          } catch (err) {
+            console.error('Error parsing metadata JSON:', err);
+          }
+        }
+      }
+
+      if (metaData && (metaData.semanticTags || metaData.models || metaData.pack || metaData.uasset || metaData.billboards)) {
+        isMegascan = true;
+        setScanLogs(prev => [...prev, `Found metadata JSON for "${dirName}". Extracting Quixel schema properties...`]);
+      }
 
       // Inspect files in this directory
       dirFiles.forEach(f => {
@@ -191,19 +256,12 @@ export default function DirectoryScanner({ libraryAssets, evictedAssetPaths = []
         else if (lowerName.includes('8k')) resolution = '8k';
       });
 
+      // If we couldn't determine mesh from files but JSON says there are models, consider it having mesh
+      if (metaData?.models?.length > 0 || metaData?.meshes?.length > 0) {
+        hasMesh = true;
+      }
+
       if (isMegascan) {
-        // Look for a JSON metadata file
-        const jsonFile = dirFiles.find(f => f.name.toLowerCase().endsWith('.json'));
-        let metaData: any = null;
-        if (jsonFile) {
-          try {
-            const jsonText = await jsonFile.text();
-            metaData = JSON.parse(jsonText);
-            setScanLogs(prev => [...prev, `Found metadata JSON for "${dirName}". Extracting Quixel schema properties...`]);
-          } catch (err) {
-            console.error('Error parsing metadata JSON:', err);
-          }
-        }
 
         // Try to figure out asset type from name or files or metadata
         const lowerDir = dirName.toLowerCase();
@@ -241,26 +299,31 @@ export default function DirectoryScanner({ libraryAssets, evictedAssetPaths = []
           thumb = 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=400&h=400&q=80';
         }
 
-        // Look for a local preview image file: filter image extensions and find file with "preview", "thumb", "render" or "icon" in name
+        // Look for a local preview image file: prioritize "preview", then "render", then "thumb", then "icon"
         const imageExtensions = ['.png', '.jpg', '.jpeg', '.webp', '.bmp', '.gif', '.tiff'];
-        let previewFile = dirFiles.find(f => {
+        
+        const possiblePreviews = dirFiles.filter(f => {
           const lowerName = f.name.toLowerCase();
-          const hasImageExt = imageExtensions.some(ext => lowerName.endsWith(ext));
-          return hasImageExt && (
-            lowerName.includes('preview') || 
-            lowerName.includes('thumb') || 
-            lowerName.includes('render') || 
-            lowerName.includes('icon')
-          );
+          return imageExtensions.some(ext => lowerName.endsWith(ext));
         });
+
+        let previewFile = possiblePreviews.find(f => f.name.toLowerCase().includes('preview'));
+        if (!previewFile) {
+          previewFile = possiblePreviews.find(f => f.name.toLowerCase().includes('render'));
+        }
+        if (!previewFile) {
+          previewFile = possiblePreviews.find(f => f.name.toLowerCase().includes('thumb'));
+        }
+        if (!previewFile) {
+          previewFile = possiblePreviews.find(f => f.name.toLowerCase().includes('icon'));
+        }
 
         // Fallback: If not found, look for ANY image file that does not contain texture keywords
         if (!previewFile) {
-          previewFile = dirFiles.find(f => {
+          previewFile = possiblePreviews.find(f => {
             const lowerName = f.name.toLowerCase();
-            const hasImageExt = imageExtensions.some(ext => lowerName.endsWith(ext));
             const isTexture = ['albedo', 'diffuse', 'normal', 'roughness', 'specular', 'displacement', 'height', 'ao', 'ambientocclusion', 'opacity', 'alpha', 'cavity'].some(keyword => lowerName.includes(keyword));
-            return hasImageExt && !isTexture;
+            return !isTexture;
           });
         }
 
@@ -285,6 +348,10 @@ export default function DirectoryScanner({ libraryAssets, evictedAssetPaths = []
           extractedTags = dirName.split('_').filter(t => t.length > 2 && !['asset', '3d', '2k', '4k', '8k', '1k'].includes(t));
         }
 
+        if (metaData?.categories && Array.isArray(metaData.categories)) {
+          extractedTags = [...extractedTags, ...metaData.categories];
+        }
+
         // Map resolution
         if (metaData?.semanticTags?.resolution) {
           const resNum = metaData.semanticTags.resolution;
@@ -294,6 +361,13 @@ export default function DirectoryScanner({ libraryAssets, evictedAssetPaths = []
           else if (resNum === 1024 || resNum === '1024') resolution = '1k';
         } else if (metaData?.resolution) {
           const resStr = String(metaData.resolution).toLowerCase();
+          if (resStr.includes('8k') || resStr.includes('8192')) resolution = '8k';
+          else if (resStr.includes('4k') || resStr.includes('4096')) resolution = '4k';
+          else if (resStr.includes('2k') || resStr.includes('2048')) resolution = '2k';
+          else if (resStr.includes('1k') || resStr.includes('1024')) resolution = '1k';
+        } else if (metaData?.maps && metaData.maps.length > 0) {
+          const maxMap = metaData.maps[metaData.maps.length - 1];
+          const resStr = String(maxMap.resolution || '').toLowerCase();
           if (resStr.includes('8k') || resStr.includes('8192')) resolution = '8k';
           else if (resStr.includes('4k') || resStr.includes('4096')) resolution = '4k';
           else if (resStr.includes('2k') || resStr.includes('2048')) resolution = '2k';
@@ -317,35 +391,69 @@ export default function DirectoryScanner({ libraryAssets, evictedAssetPaths = []
           });
         }
 
-        const parsedAssetItem: Asset = {
-          id: generatedId,
-          name: cleanName,
-          type: assetType,
-          size: totalSize,
-          isZipped: false,
-          resolution,
-          thumbnailUrl: thumb,
-          tags: Array.from(new Set(extractedTags)),
-          categories: [`cat-${assetType === '3dplant' ? 'plants' : assetType === '3d' ? '3d' : assetType === 'surface' ? 'surfaces' : 'atlases'}`],
-          scannedPath: `/Local/Scanned/${dirName}`,
-          dateAdded: new Date().toISOString(),
-          description: desc,
-          meshStats: hasMesh ? {
-            vertices: metaData?.meshes?.[0]?.tris || 15400,
-            triangles: metaData?.meshes?.[0]?.tris ? metaData.meshes[0].tris * 2 : 30800,
-            format: meshFormat,
-          } : undefined,
-          textures,
-          packName: metaData?.pack?.name,
-          country: metaData?.semanticTags?.country,
-          region: metaData?.semanticTags?.region,
-        };
+        const resSet = new Set<'1k'|'2k'|'4k'|'8k'>();
+        
+        let hasExplicitTextureResolutions = false;
+        textures.forEach(t => {
+           const ln = t.name.toLowerCase();
+           if (ln.includes('8k')) { resSet.add('8k'); hasExplicitTextureResolutions = true; }
+           else if (ln.includes('4k')) { resSet.add('4k'); hasExplicitTextureResolutions = true; }
+           else if (ln.includes('2k')) { resSet.add('2k'); hasExplicitTextureResolutions = true; }
+           else if (ln.includes('1k') || ln.includes('1024')) { resSet.add('1k'); hasExplicitTextureResolutions = true; }
+        });
 
-        if (Object.keys(dimensions).length > 0) {
-          parsedAssetItem.dimensions = dimensions;
+        if (!hasExplicitTextureResolutions) {
+           resSet.add(resolution);
         }
 
-        parsedAssets.push(parsedAssetItem);
+        for (const res of Array.from(resSet)) {
+           const resTextures = textures.filter(t => {
+               const ln = t.name.toLowerCase();
+               const is1k = ln.includes('1k') || ln.includes('1024');
+               const is2k = ln.includes('2k') || ln.includes('2048');
+               const is4k = ln.includes('4k') || ln.includes('4096');
+               const is8k = ln.includes('8k') || ln.includes('8192');
+               const hasRes = is1k || is2k || is4k || is8k;
+               if (!hasRes) return true;
+               if (res === '1k' && is1k) return true;
+               if (res === '2k' && is2k) return true;
+               if (res === '4k' && is4k) return true;
+               if (res === '8k' && is8k) return true;
+               return false;
+           });
+
+           const size = resTextures.reduce((acc, t) => acc + t.size, 0) || totalSize;
+
+           const parsedAssetItem: Asset = {
+             id: `${generatedId}-${res}`,
+             name: cleanName,
+             type: assetType,
+             size: size,
+             isZipped: false,
+             resolution: res,
+             thumbnailUrl: thumb,
+             tags: Array.from(new Set(extractedTags)),
+             categories: [`cat-${assetType === '3dplant' ? 'plants' : assetType === '3d' ? '3d' : assetType === 'surface' ? 'surfaces' : 'atlases'}`],
+             scannedPath: `/Local/Scanned/${dirName}`,
+             dateAdded: new Date().toISOString(),
+             description: desc,
+             meshStats: hasMesh ? {
+               vertices: metaData?.meshes?.[0]?.tris || metaData?.models?.[0]?.tris || 15400,
+               triangles: (metaData?.meshes?.[0]?.tris || metaData?.models?.[0]?.tris) ? (metaData?.meshes?.[0]?.tris || metaData?.models?.[0]?.tris) * 2 : 30800,
+               format: meshFormat,
+             } : undefined,
+             textures: resTextures,
+             packName: metaData?.pack?.name,
+             country: metaData?.semanticTags?.country,
+             region: metaData?.semanticTags?.region,
+           };
+
+           if (Object.keys(dimensions).length > 0) {
+             parsedAssetItem.dimensions = dimensions;
+           }
+
+           parsedAssets.push(parsedAssetItem);
+        }
       }
     }
 

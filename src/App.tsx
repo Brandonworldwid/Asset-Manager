@@ -31,6 +31,8 @@ import {
   Flame,
   Trees,
   ChevronRight,
+  ChevronLeft,
+  ChevronDown,
   Library
 } from 'lucide-react';
 
@@ -93,8 +95,16 @@ export default function App() {
   const [isSettingsVibrating, setIsSettingsVibrating] = useState<boolean>(false);
   const [forceSaveButtonRed, setForceSaveButtonRed] = useState<boolean>(false);
 
+  const [showBridgePrompt, setShowBridgePrompt] = useState<boolean>(() => {
+    return localStorage.getItem('megascan_bridge_prompt_shown') !== 'true';
+  });
+
+  const [hasBridgeAssets, setHasBridgeAssets] = useState<boolean>(() => {
+    return localStorage.getItem('megascan_has_bridge_assets') === 'true';
+  });
+
   // Categories editing in Settings states
-  const [activeSettingsTab, setActiveSettingsTab] = useState<'personalization' | 'categories'>('personalization');
+  const [activeSettingsTab, setActiveSettingsTab] = useState<'personalization' | 'categories' | 'bridge'>('personalization');
   const [draftCategoriesList, setDraftCategoriesList] = useState<Category[]>([]);
   const [categoryNavPath, setCategoryNavPath] = useState<string[]>([]);
   const [newSubcategoryInput, setNewSubcategoryInput] = useState<string>('');
@@ -105,6 +115,7 @@ export default function App() {
   const [showBatchEditModal, setShowBatchEditModal] = useState<boolean>(false);
   const [batchZipPopupAction, setBatchZipPopupAction] = useState<'zip' | 'unzip' | null>(null);
   const [batchConfirmAction, setBatchConfirmAction] = useState<'delete' | 'remove' | null>(null);
+  const [resolutionSelectionAction, setResolutionSelectionAction] = useState<{ type: 'delete' | 'remove', assetIds: string[] } | null>(null);
   
   // Sync draft settings when settings modal is opened
   useEffect(() => {
@@ -113,7 +124,7 @@ export default function App() {
       setDraftCategoriesList(JSON.parse(JSON.stringify(categories)));
       
       const firstParent = categories.find(c => c.id !== 'cat-all' && c.id !== 'cat-favorites') || categories[0];
-      setSelectedParentCategoryId(firstParent ? firstParent.id : '');
+      setCategoryNavPath(firstParent ? [firstParent.id] : []);
       
       setNewSubcategoryInput('');
       setNewMainCategoryInput('');
@@ -389,9 +400,14 @@ export default function App() {
   };
 
   const handleBatchMoveCategory = (categoryId: string) => {
-    setAssets((prev) =>
-      prev.map((asset) => {
-        if (selectedAssetIds.includes(asset.id)) {
+    setAssets((prev) => {
+      // 1. Identify all variants of ALL selected assets
+      const selectedAssets = prev.filter(a => selectedAssetIds.includes(a.id));
+      const groupKeysToMove = new Set(selectedAssets.map(a => getAssetGroupKey(a)));
+      
+      return prev.map((asset) => {
+        // 2. Check if this asset is a variant of any selected asset
+        if (groupKeysToMove.has(getAssetGroupKey(asset))) {
           const hasFavorite = asset.categories.includes('cat-favorites');
           return {
             ...asset,
@@ -399,10 +415,10 @@ export default function App() {
           };
         }
         return asset;
-      })
-    );
+      });
+    });
     const targetCatName = categories.find((c) => c.id === categoryId)?.name || 'New Category';
-    notify(`Moved ${selectedAssetIds.length} assets to category "${targetCatName}"`);
+    notify(`Moved all resolution variants of ${selectedAssetIds.length} asset groups to category "${targetCatName}"`);
   };
 
   const handleBatchRescan = () => {
@@ -482,6 +498,34 @@ export default function App() {
     const sizes = ['B', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+  };
+
+  const handleBridgeToggle = (val: boolean) => {
+    setHasBridgeAssets(val);
+    localStorage.setItem('megascan_has_bridge_assets', val ? 'true' : 'false');
+    localStorage.setItem('megascan_bridge_prompt_shown', 'true');
+    
+    if (val) {
+       // add Mega Scans category
+       setCategories(prev => {
+           if (!prev.find(c => c.id === 'cat-megascans')) {
+               return [...prev, { id: 'cat-megascans', name: 'Mega Scans', icon: 'Box', subcategories: [] }];
+           }
+           return prev;
+       });
+       setDraftCategoriesList(prev => {
+           if (!prev.find(c => c.id === 'cat-megascans')) {
+               return [...prev, { id: 'cat-megascans', name: 'Mega Scans', icon: 'Box', subcategories: [] }];
+           }
+           return prev;
+       });
+       notify("Mega Scans workspace created");
+    } else {
+       // remove Mega Scans category
+       setCategories(prev => prev.filter(c => c.id !== 'cat-megascans'));
+       setDraftCategoriesList(prev => prev.filter(c => c.id !== 'cat-megascans'));
+       notify("Mega Scans workspace removed");
+    }
   };
 
   return (
@@ -601,8 +645,8 @@ export default function App() {
               onToggleZip={handleToggleZip}
               onSaveAssetDetails={handleSaveAssetDetails}
               onSelectAsset={setSelectedAssetId}
-              onDeleteAsset={handleDeleteAsset}
-              onRemoveFromManager={handleRemoveFromManager}
+              onDeleteAsset={(id) => setResolutionSelectionAction({ type: 'delete', assetIds: [id] })}
+              onRemoveFromManager={(id) => setResolutionSelectionAction({ type: 'remove', assetIds: [id] })}
               onMoveAssetPath={handleMoveAssetPath}
             />
           )}
@@ -638,7 +682,7 @@ export default function App() {
 
             <div className="flex items-center gap-2">
               <button
-                onClick={() => setBatchConfirmAction('delete')}
+                onClick={() => setResolutionSelectionAction({ type: 'delete', assetIds: selectedAssetIds })}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-600/10 hover:bg-red-600 border border-red-500/20 hover:border-red-500 text-red-400 hover:text-white transition-all font-semibold font-sans cursor-pointer"
                 title="Delete from library and local drive"
               >
@@ -647,7 +691,7 @@ export default function App() {
               </button>
 
               <button
-                onClick={() => setBatchConfirmAction('remove')}
+                onClick={() => setResolutionSelectionAction({ type: 'remove', assetIds: selectedAssetIds })}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/10 hover:bg-amber-600 border border-amber-500/20 hover:border-amber-500 text-amber-400 hover:text-white transition-all font-semibold font-sans cursor-pointer"
                 title="Remove from Manager (Exclude from future scanning)"
               >
@@ -1137,6 +1181,17 @@ export default function App() {
                         <span className="text-red-500 font-bold text-[10px] leading-none select-none">*</span>
                       )}
                     </button>
+                    <button
+                      onClick={() => setActiveSettingsTab('bridge')}
+                      className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs text-left transition-colors cursor-pointer ${
+                        activeSettingsTab === 'bridge'
+                          ? 'bg-blue-600/10 border border-blue-500/20 text-blue-400 font-bold'
+                          : 'border border-transparent text-gray-400 hover:text-white hover:bg-white/5'
+                      }`}
+                    >
+                      <Box className="w-3.5 h-3.5" />
+                      <span className="flex-1 truncate">Bridge</span>
+                    </button>
                   </div>
 
                   {/* Right Content Pane */}
@@ -1469,6 +1524,36 @@ export default function App() {
                       </div>
                     )}
 
+                    {activeSettingsTab === 'bridge' && (
+                      <div className="flex flex-col h-full">
+                        <div className="mb-6">
+                           <h4 className="text-xs font-bold text-white uppercase tracking-wider mb-2">Bridge Integration</h4>
+                           <p className="text-gray-400 text-[11px] leading-relaxed">
+                             Manage your Bridge assets workspace. Epic Games moved Bridge to Fab, but you can still access downloaded assets.
+                           </p>
+                        </div>
+                        
+                        <div className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-xl">
+                           <div className="flex flex-col">
+                              <span className="text-sm font-bold text-white mb-1">Do you have Bridge assets?</span>
+                              <span className="text-xs text-gray-500">Toggling this will {hasBridgeAssets ? "remove" : "create"} the Mega Scans category.</span>
+                           </div>
+                           <button
+                              onClick={() => handleBridgeToggle(!hasBridgeAssets)}
+                              className={`w-12 h-6 rounded-full relative transition-colors cursor-pointer ${
+                                 hasBridgeAssets ? 'bg-blue-600' : 'bg-white/10'
+                              }`}
+                           >
+                              <div 
+                                 className={`w-4 h-4 bg-white rounded-full absolute top-1 transition-transform ${
+                                    hasBridgeAssets ? 'translate-x-7' : 'translate-x-1'
+                                 }`} 
+                              />
+                           </button>
+                        </div>
+                      </div>
+                    )}
+
                     {/* Footer (Only visible if settings are dirty) */}
                     {isSettingsDirty && (
                       <div className="flex items-center justify-end gap-2 border-t border-white/5 pt-4 mt-4">
@@ -1507,6 +1592,142 @@ export default function App() {
             </div>
           );
         })()}
+      </AnimatePresence>
+
+      {/* Bridge Initial Prompt */}
+      {showBridgePrompt && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[120] flex items-center justify-center p-4">
+           <motion.div 
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              className="bg-[#111112] border border-white/10 p-8 rounded-2xl max-w-md w-full shadow-2xl flex flex-col items-center text-center"
+           >
+              <div className="w-12 h-12 bg-blue-500/10 rounded-full flex items-center justify-center mb-5">
+                <Box className="w-6 h-6 text-blue-400" />
+              </div>
+              <h2 className="text-xl font-bold text-white mb-3">Do you have Bridge assets?</h2>
+              <p className="text-gray-400 mb-8 text-xs leading-relaxed">
+                 Epic Games recently acquired Bridge and moved it to Fab. If you have previously downloaded Mega Scans from Bridge, we can create a dedicated workspace for them.
+              </p>
+              
+              <div className="flex flex-col gap-3 w-full">
+                 <button 
+                    onClick={() => {
+                       handleBridgeToggle(true);
+                       setShowBridgePrompt(false);
+                    }}
+                    className="w-full bg-blue-600 hover:bg-blue-500 text-white py-2.5 rounded-lg font-bold text-xs transition-colors cursor-pointer border border-blue-500"
+                 >
+                    Yes, I have Bridge assets
+                 </button>
+                 <button 
+                    onClick={() => {
+                       handleBridgeToggle(false);
+                       setShowBridgePrompt(false);
+                    }}
+                    className="w-full bg-white/5 hover:bg-white/10 text-white py-2.5 rounded-lg font-bold text-xs transition-colors border border-white/10 cursor-pointer"
+                 >
+                    No
+                 </button>
+                 <button 
+                    onClick={() => {
+                       setShowBridgePrompt(false);
+                       localStorage.setItem('megascan_bridge_prompt_shown', 'true');
+                    }}
+                    className="w-full bg-transparent hover:bg-white/5 text-gray-400 py-2.5 rounded-lg font-bold text-xs transition-colors cursor-pointer mt-1"
+                 >
+                    Not now
+                 </button>
+              </div>
+              <p className="text-gray-500 text-[10px] mt-6">
+                 You can change this later in settings.
+              </p>
+           </motion.div>
+        </div>
+      )}
+
+      {/* Resolution Selection Modal */}
+      <AnimatePresence>
+        {resolutionSelectionAction !== null && (
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[110] flex items-center justify-center p-4" id="resolution-selection-overlay">
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="w-full max-w-sm bg-[#121214] border border-white/10 rounded-2xl shadow-2xl p-6 flex flex-col gap-4"
+            >
+              <h3 className="text-sm font-sans font-extrabold text-white uppercase tracking-wider">
+                {resolutionSelectionAction.type === 'delete' ? 'Delete Resolutions' : 'Remove Resolutions'}
+              </h3>
+              <p className="text-[11px] text-gray-400 leading-relaxed">
+                Choose which resolution to {resolutionSelectionAction.type === 'delete' ? 'delete' : 'remove'}.
+              </p>
+              
+              <div className="flex flex-col gap-2">
+                 {Array.from(new Set(assets.filter(a => resolutionSelectionAction.assetIds.includes(a.id)).map(a => a.resolution))).sort().map(res => (
+                   <button
+                     key={res}
+                     onClick={() => {
+                        // Logic to delete specific resolution
+                        // Need to find all variants of the selected assets that match this resolution
+                        const selectedAssets = assets.filter(a => resolutionSelectionAction.assetIds.includes(a.id));
+                        const groupKeys = new Set(selectedAssets.map(a => getAssetGroupKey(a)));
+                        const targetIds = assets.filter(a => groupKeys.has(getAssetGroupKey(a)) && a.resolution === res).map(a => a.id);
+                        
+                        if (resolutionSelectionAction.type === 'delete') {
+                           setAssets(prev => prev.filter(a => !targetIds.includes(a.id)));
+                           notify(`Deleted ${targetIds.length} assets of ${res} resolution.`);
+                        } else {
+                           // Remove from manager logic
+                           const toRemove = assets.filter(a => targetIds.includes(a.id));
+                           setEvictedAssetPaths(prev => {
+                              const next = [...prev];
+                              toRemove.forEach(a => { if (!next.includes(a.scannedPath)) next.push(a.scannedPath); });
+                              return next;
+                           });
+                           setAssets(prev => prev.filter(a => !targetIds.includes(a.id)));
+                           notify(`Removed ${toRemove.length} assets of ${res} resolution from manager.`);
+                        }
+                        setResolutionSelectionAction(null);
+                     }}
+                     className="w-full text-left px-3 py-2 bg-white/5 hover:bg-white/10 rounded-lg text-xs font-bold text-white transition-all"
+                   >
+                     {res.toUpperCase()}
+                   </button>
+                 ))}
+                 
+                 <button
+                   onClick={() => {
+                      if (resolutionSelectionAction.type === 'delete') {
+                        setAssets(prev => prev.filter(a => !resolutionSelectionAction.assetIds.includes(a.id)));
+                         notify(`Deleted ${resolutionSelectionAction.assetIds.length} selected assets.`);
+                      } else {
+                        const toRemove = assets.filter(a => resolutionSelectionAction.assetIds.includes(a.id));
+                        setEvictedAssetPaths(prev => {
+                           const next = [...prev];
+                           toRemove.forEach(a => { if (!next.includes(a.scannedPath)) next.push(a.scannedPath); });
+                           return next;
+                        });
+                        setAssets(prev => prev.filter(a => !resolutionSelectionAction.assetIds.includes(a.id)));
+                         notify(`Removed ${toRemove.length} assets from manager.`);
+                      }
+                      setResolutionSelectionAction(null);
+                   }}
+                   className="w-full text-left px-3 py-2 bg-red-600/20 hover:bg-red-600 text-red-400 hover:text-white rounded-lg text-xs font-bold transition-all mt-2"
+                 >
+                   Delete All Variants
+                 </button>
+                 
+                 <button
+                   onClick={() => setResolutionSelectionAction(null)}
+                   className="w-full text-center px-3 py-2 text-gray-500 hover:text-gray-300 text-xs font-bold transition-all"
+                 >
+                   Cancel
+                 </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
       </AnimatePresence>
 
       {/* Global Confirmation Modal for Batch Deletions or Exclusions */}

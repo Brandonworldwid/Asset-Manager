@@ -135,6 +135,13 @@ export default function Sidebar({
     }
   };
 
+  const toggleCat = (id: string) => {
+    setExpandedCategories(prev => ({
+      ...prev,
+      [id]: !prev[id]
+    }));
+  };
+
   // Helper component for recursive subcategories rendering
   const RecursiveSubcategoryList = ({ subcategories, parentId, depth = 1 }: { subcategories: any[], parentId: string, depth?: number }) => {
     return (
@@ -147,7 +154,7 @@ export default function Sidebar({
       >
         {subcategories.map((sub: any) => {
           const isSubActive = activeCategoryId === sub.id;
-          const isExpanded = expandedCats.includes(sub.id);
+          const isExpanded = !!expandedCategories[sub.id];
           const hasChildren = sub.subcategories && sub.subcategories.length > 0;
           return (
             <div key={sub.id} className="w-full">
