@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import {
   Search,
   SlidersHorizontal,
@@ -14,7 +14,15 @@ import {
   LayoutGrid,
   Star,
   Check,
-  ChevronDown
+  ChevronDown,
+  X,
+  Eye,
+  ChevronLeft,
+  ChevronRight,
+  Copy,
+  Globe,
+  Calendar,
+  Folder
 } from 'lucide-react';
 import { Asset, AssetType, getAssetGroupKey, getAssetGroupName } from '../types';
 
@@ -65,6 +73,8 @@ export default function AssetGrid({
   const [isTypeDropdownOpen, setIsTypeDropdownOpen] = useState(false);
   const [sortField, setSortField] = useState<SortField>('date');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
+  const [quickViewAsset, setQuickViewAsset] = useState<Asset | null>(null);
+  const [copiedPath, setCopiedPath] = useState(false);
 
   // Filter and Sort Logic
   const filteredAssets = assets
@@ -120,6 +130,45 @@ export default function AssetGrid({
       allAssets: sortedGroupAssets,
     };
   });
+
+  const handlePrevQuickView = () => {
+    if (!quickViewAsset) return;
+    const currentIndex = assetGroups.findIndex(g => g.allAssets.some(a => a.id === quickViewAsset.id));
+    if (currentIndex !== -1) {
+      const prevIndex = (currentIndex - 1 + assetGroups.length) % assetGroups.length;
+      setQuickViewAsset(assetGroups[prevIndex].primaryAsset);
+      setCopiedPath(false);
+    }
+  };
+
+  const handleNextQuickView = () => {
+    if (!quickViewAsset) return;
+    const currentIndex = assetGroups.findIndex(g => g.allAssets.some(a => a.id === quickViewAsset.id));
+    if (currentIndex !== -1) {
+      const nextIndex = (currentIndex + 1) % assetGroups.length;
+      setQuickViewAsset(assetGroups[nextIndex].primaryAsset);
+      setCopiedPath(false);
+    }
+  };
+
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!quickViewAsset) return;
+      const activeEl = document.activeElement;
+      if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA')) {
+        return;
+      }
+      if (e.key === 'Escape') {
+        setQuickViewAsset(null);
+      } else if (e.key === 'ArrowLeft') {
+        handlePrevQuickView();
+      } else if (e.key === 'ArrowRight') {
+        handleNextQuickView();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [quickViewAsset, assetGroups]);
 
   const toggleSort = (field: SortField) => {
     if (sortField === field) {
@@ -356,10 +405,22 @@ export default function AssetGrid({
                       )}
                     </div>
 
-                    {/* Double-click Hint (Appears on hover) */}
-                    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 bg-black/40 transition-opacity duration-150">
-                      <span className="px-2 py-1 bg-[#111111]/95 border border-white/10 rounded text-[9px] font-mono text-gray-200 shadow-lg flex items-center gap-1">
-                        <Zap className="w-2.5 h-2.5 text-blue-400 animate-pulse" />
+                    {/* Hover Overlay with Quick View Button & Dbl-Click Hint */}
+                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 opacity-0 group-hover:opacity-100 bg-black/50 backdrop-blur-[2px] transition-opacity duration-150 z-10">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setQuickViewAsset(asset);
+                        }}
+                        className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs rounded-lg flex items-center gap-1.5 shadow-lg shadow-blue-600/30 active:scale-95 transition-all cursor-pointer"
+                        id={`quick-view-btn-${asset.id}`}
+                        title="Quick View Asset"
+                      >
+                        <Eye className="w-3.5 h-3.5" />
+                        <span>Quick View</span>
+                      </button>
+                      <span className="px-1.5 py-0.5 bg-[#111111]/90 border border-white/5 rounded text-[8px] font-mono text-gray-400 flex items-center gap-1">
+                        <Zap className="w-2 h-2 text-blue-400 animate-pulse" />
                         Dbl-click to {asset.isZipped ? 'unzip' : 'zip'}
                       </span>
                     </div>
@@ -445,6 +506,323 @@ export default function AssetGrid({
           </div>
         )}
       </div>
+
+      {/* Quick View Modal */}
+      <AnimatePresence>
+        {quickViewAsset && (() => {
+          const freshAsset = assets.find(a => a.id === quickViewAsset.id) || quickViewAsset;
+          const group = assetGroups.find(g => g.allAssets.some(a => a.id === freshAsset.id)) || {
+            groupName: freshAsset.name,
+            allAssets: [freshAsset],
+          };
+          const allAssets: Asset[] = group.allAssets;
+          const totalGroupSize = allAssets.reduce((sum, a) => sum + a.size, 0);
+          const TypeIcon = typeIcons[freshAsset.type] || Box;
+
+          const isFlippedZip = freshAsset.isZipped;
+
+          const handleCopyPath = () => {
+            navigator.clipboard.writeText(freshAsset.scannedPath || '');
+            setCopiedPath(true);
+            setTimeout(() => setCopiedPath(false), 2000);
+          };
+
+          return (
+            <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-[120] flex items-center justify-center p-4" id="quickview-overlay" onClick={() => setQuickViewAsset(null)}>
+              {/* Left Navigation Arrow */}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handlePrevQuickView();
+                }}
+                className="absolute left-4 md:left-8 top-1/2 -translate-y-1/2 p-3 bg-[#111112]/80 hover:bg-[#161618] border border-white/10 rounded-full text-gray-400 hover:text-white transition-all shadow-xl hover:scale-105 active:scale-95 cursor-pointer z-50 animate-pulse"
+                title="Previous Asset (Left Arrow)"
+              >
+                <ChevronLeft className="w-6 h-6" />
+              </button>
+
+              {/* Modal Window */}
+              <motion.div
+                initial={{ scale: 0.95, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.95, opacity: 0 }}
+                transition={{ duration: 0.18 }}
+                className="w-full max-w-5xl bg-[#111112] border border-white/10 rounded-2xl shadow-2xl overflow-hidden flex flex-col md:flex-row h-[90vh] md:h-[640px] relative"
+                id="quickview-modal-window"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {/* Close Button */}
+                <button
+                  onClick={() => setQuickViewAsset(null)}
+                  className="absolute top-4 right-4 p-2 bg-black/60 hover:bg-black/80 border border-white/10 hover:border-white/20 rounded-full text-gray-400 hover:text-white transition-all cursor-pointer z-50 shadow-lg"
+                  title="Close Quick View (Esc)"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+
+                {/* Left Side: Thumbnail Preview Frame */}
+                <div className="md:w-1/2 h-[260px] md:h-full relative bg-[#09090a] flex items-center justify-center overflow-hidden border-b md:border-b-0 md:border-r border-white/5">
+                  {/* Grid background effect */}
+                  <div className="absolute inset-0 opacity-[0.03] bg-[linear-gradient(to_right,#808080_1px,transparent_1px),linear-gradient(to_bottom,#808080_1px,transparent_1px)] bg-[size:14px_24px]" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-black/20" />
+
+                  <img
+                    src={freshAsset.thumbnailUrl}
+                    alt={freshAsset.name}
+                    referrerPolicy="no-referrer"
+                    className="max-w-[85%] max-h-[85%] object-contain select-none shadow-2xl rounded-lg"
+                  />
+
+                  {/* Top-left Badges */}
+                  <div className="absolute top-4 left-4 flex flex-col gap-1.5">
+                    <span className="bg-blue-600 border border-blue-400/30 text-white rounded px-2.5 py-0.5 text-[10px] font-bold font-mono tracking-wide shadow-lg flex items-center gap-1.5">
+                      <TypeIcon className="w-3.5 h-3.5" />
+                      {typeLabels[freshAsset.type].toUpperCase()}
+                    </span>
+                    <span className="bg-black/75 border border-white/10 text-gray-300 rounded px-2 py-0.5 text-[9px] font-bold font-mono tracking-wider w-fit">
+                      {freshAsset.resolution.toUpperCase()} RESOLUTION
+                    </span>
+                  </div>
+
+                  {/* Bottom Actions overlay */}
+                  <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between">
+                    {/* Resolution toggle list */}
+                    <div className="flex gap-1 bg-black/60 border border-white/5 p-1 rounded-lg backdrop-blur-sm">
+                      {group.allAssets.map((variant) => {
+                        const isVarSelected = freshAsset.id === variant.id;
+                        return (
+                          <button
+                            key={variant.id}
+                            onClick={() => {
+                              setQuickViewAsset(variant);
+                              setCopiedPath(false);
+                            }}
+                            className={`font-mono text-[9px] font-bold px-2 py-1 rounded transition-all cursor-pointer ${
+                              isVarSelected
+                                ? 'bg-blue-600 text-white'
+                                : 'text-gray-400 hover:text-white hover:bg-white/5'
+                            }`}
+                          >
+                            {variant.resolution.toUpperCase()}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {/* Quick Zip status / toggle & Favorite button */}
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => onToggleZip(freshAsset.id)}
+                        className={`px-2.5 py-1 text-[10px] font-bold font-mono rounded-lg border flex items-center gap-1.5 transition-colors cursor-pointer backdrop-blur-sm ${
+                          isFlippedZip
+                            ? 'bg-amber-500/10 border-amber-500/20 text-amber-400 hover:bg-amber-500/20'
+                            : 'bg-blue-500/10 border-blue-500/20 text-blue-400 hover:bg-blue-500/20'
+                        }`}
+                        title={isFlippedZip ? 'Unzip asset' : 'Zip asset'}
+                      >
+                        {isFlippedZip ? (
+                          <>
+                            <FileArchive className="w-3 h-3" />
+                            <span>ZIPPED</span>
+                          </>
+                        ) : (
+                          <>
+                            <FolderOpen className="w-3 h-3" />
+                            <span>UNZIPPED</span>
+                          </>
+                        )}
+                      </button>
+
+                      <button
+                        onClick={() => onToggleFavorite(freshAsset.id)}
+                        className="p-1.5 bg-black/60 border border-white/10 hover:border-yellow-500/40 rounded-lg text-gray-300 hover:text-yellow-400 transition-colors cursor-pointer"
+                        title={freshAsset.categories.includes('cat-favorites') ? 'Remove from favorites' : 'Add to favorites'}
+                      >
+                        <Star
+                          className={`w-4 h-4 ${
+                            freshAsset.categories.includes('cat-favorites')
+                              ? 'text-yellow-400 fill-yellow-400'
+                              : ''
+                          }`}
+                        />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Right Side: Primary Properties Details */}
+                <div className="md:w-1/2 flex flex-col h-full overflow-y-auto p-6 md:p-8 scrollbar-thin scrollbar-thumb-white/5 bg-[#111112]">
+                  <div className="min-h-0 flex-1">
+                    <div className="flex items-center gap-1.5 text-[9px] font-mono font-bold text-gray-500 uppercase tracking-wider">
+                      <span>Megascans Asset Library</span>
+                      <span>/</span>
+                      <span className="text-blue-400">{typeLabels[freshAsset.type]}</span>
+                    </div>
+
+                    <h2 className="text-xl font-bold text-white tracking-tight mt-1 mb-2">
+                      {group.groupName}
+                    </h2>
+
+                    {freshAsset.description ? (
+                      <p className="text-xs text-gray-400 leading-relaxed font-sans mb-4">
+                        {freshAsset.description}
+                      </p>
+                    ) : (
+                      <p className="text-xs text-gray-500 italic leading-relaxed font-sans mb-4">
+                        High fidelity material scan designed for real-time applications, film visual production, and architecture previewing.
+                      </p>
+                    )}
+
+                    <div className="border-t border-white/5 my-4" />
+
+                    {/* Meta Properties Grid */}
+                    <div className="grid grid-cols-2 gap-3.5 text-xs mb-6">
+                      <div className="space-y-1">
+                        <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider font-mono">File Size</span>
+                        <div className="text-white font-medium flex flex-wrap items-center gap-1">
+                          <span className="font-mono">{formatSize(freshAsset.size)}</span>
+                          {group.allAssets.length > 1 && (
+                            <span className="text-[10px] text-gray-500">
+                              ({formatSize(totalGroupSize)} combined)
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="space-y-1">
+                        <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider font-mono">Date Imported</span>
+                        <div className="text-white font-medium flex items-center gap-1.5">
+                          <Calendar className="w-3.5 h-3.5 text-gray-500" />
+                          <span>{new Date(freshAsset.dateAdded).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}</span>
+                        </div>
+                      </div>
+
+                      {(freshAsset.country || freshAsset.region) && (
+                        <div className="space-y-1">
+                          <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider font-mono">Origin Location</span>
+                          <div className="text-white font-medium flex items-center gap-1.5">
+                            <Globe className="w-3.5 h-3.5 text-gray-500" />
+                            <span>
+                              {[freshAsset.region, freshAsset.country].filter(Boolean).join(', ')}
+                            </span>
+                          </div>
+                        </div>
+                      )}
+
+                      {freshAsset.packName && (
+                        <div className="space-y-1">
+                          <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider font-mono">Asset Pack Collection</span>
+                          <div className="text-white font-medium truncate" title={freshAsset.packName}>
+                            {freshAsset.packName}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Scanned Path Row */}
+                    <div className="p-3 bg-black/20 border border-white/5 rounded-xl text-xs space-y-1.5 mb-6">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider font-mono flex items-center gap-1.5">
+                          <Folder className="w-3.5 h-3.5 text-blue-400" />
+                          <span>Local Export Folder</span>
+                        </span>
+                        <button
+                          onClick={handleCopyPath}
+                          className="px-2 py-0.5 bg-white/5 hover:bg-white/10 text-[10px] text-gray-300 hover:text-white rounded border border-white/5 transition-colors cursor-pointer flex items-center gap-1 font-mono"
+                        >
+                          <Copy className="w-3 h-3" />
+                          <span>{copiedPath ? 'COPIED!' : 'COPY'}</span>
+                        </button>
+                      </div>
+                      <div className="font-mono text-[10px] text-gray-400 bg-black/40 px-2 py-1.5 rounded border border-white/5 select-all overflow-x-auto whitespace-nowrap scrollbar-none">
+                        {freshAsset.scannedPath || 'Not Scanned'}
+                      </div>
+                    </div>
+
+                    {/* Spec details based on Asset Type */}
+                    {freshAsset.meshStats && (
+                      <div className="mb-6 space-y-2">
+                        <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider font-mono">Mesh Geometry Specs</span>
+                        <div className="grid grid-cols-3 gap-2 bg-black/10 border border-white/5 p-3 rounded-xl text-xs">
+                          <div>
+                            <div className="text-gray-500 text-[10px] font-mono">FORMAT</div>
+                            <div className="text-white font-bold font-mono mt-0.5">{freshAsset.meshStats.format}</div>
+                          </div>
+                          <div>
+                            <div className="text-gray-500 text-[10px] font-mono">VERTICES</div>
+                            <div className="text-white font-bold font-mono mt-0.5">
+                              {freshAsset.meshStats.vertices.toLocaleString()}
+                            </div>
+                          </div>
+                          <div>
+                            <div className="text-gray-500 text-[10px] font-mono">TRIANGLES</div>
+                            <div className="text-white font-bold font-mono mt-0.5">
+                              {freshAsset.meshStats.triangles.toLocaleString()}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Textures list if any */}
+                    {freshAsset.textures && freshAsset.textures.length > 0 && (
+                      <div className="mb-6 space-y-2">
+                        <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider font-mono">
+                          Linked Texture Maps ({freshAsset.textures.length})
+                        </span>
+                        <div className="space-y-1 bg-black/10 border border-white/5 p-2 rounded-xl max-h-[140px] overflow-y-auto scrollbar-thin scrollbar-thumb-white/5">
+                          {freshAsset.textures.map((tex, idx) => (
+                            <div key={idx} className="flex items-center justify-between text-[11px] py-1 px-2 hover:bg-white/5 rounded transition-colors border-b border-white/2 last:border-0">
+                              <div className="flex items-center gap-1.5 font-medium text-gray-300">
+                                <span className="w-1.5 h-1.5 rounded-full bg-blue-500/80" />
+                                <span className="text-white font-mono">{tex.type}</span>
+                                <span className="text-gray-500 text-[9px] truncate max-w-[120px]" title={tex.name}>{tex.name}</span>
+                              </div>
+                              <div className="flex items-center gap-2 font-mono text-[10px]">
+                                <span className="bg-white/5 border border-white/5 text-gray-400 px-1 rounded text-[9px]">{tex.resolution}</span>
+                                <span className="text-gray-500">{tex.size}</span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Tags */}
+                    {freshAsset.tags && freshAsset.tags.length > 0 && (
+                      <div className="space-y-2">
+                        <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider font-mono">Metadata Tags</span>
+                        <div className="flex flex-wrap gap-1">
+                          {freshAsset.tags.map((tag) => (
+                            <span
+                              key={tag}
+                              className="px-2 py-0.5 bg-white/5 border border-white/5 text-gray-400 rounded-lg text-[10px] font-mono hover:text-white hover:border-white/10 transition-all"
+                            >
+                              #{tag}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </motion.div>
+
+              {/* Right Navigation Arrow */}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleNextQuickView();
+                }}
+                className="absolute right-4 md:right-8 top-1/2 -translate-y-1/2 p-3 bg-[#111112]/80 hover:bg-[#161618] border border-white/10 rounded-full text-gray-400 hover:text-white transition-all shadow-xl hover:scale-105 active:scale-95 cursor-pointer z-50 animate-pulse"
+                title="Next Asset (Right Arrow)"
+              >
+                <ChevronRight className="w-6 h-6" />
+              </button>
+            </div>
+          );
+        })()}
+      </AnimatePresence>
     </div>
   );
 }

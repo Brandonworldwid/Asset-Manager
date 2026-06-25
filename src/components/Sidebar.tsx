@@ -17,7 +17,13 @@ import {
   Folder,
   Tag,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  ChevronDown,
+  Sparkles,
+  Package,
+  Flame,
+  Trees,
+  Compass
 } from 'lucide-react';
 import { Category } from '../types';
 
@@ -35,9 +41,17 @@ const iconMap: Record<string, React.ComponentType<any>> = {
   FolderArchive: Library,
   Box: Box,
   Flower: Leaf,
+  Leaf: Leaf,
   Layers: Layers,
   Grid: LayoutGrid,
   Star: Star,
+  Folder: Folder,
+  Tag: Tag,
+  Sparkles: Sparkles,
+  Package: Package,
+  Flame: Flame,
+  Trees: Trees,
+  Compass: Compass,
 };
 
 export default function Sidebar({
@@ -53,6 +67,14 @@ export default function Sidebar({
   const [editingCatId, setEditingCatId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState('');
   const [showAddForm, setShowAddForm] = useState(false);
+  const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>(() => {
+    return {
+      'cat-3d': true,
+      'cat-plants': true,
+      'cat-surfaces': true,
+      'cat-atlases': true,
+    };
+  });
 
   // Width and Collapse states
   const [width, setWidth] = useState(() => {
@@ -111,6 +133,65 @@ export default function Sidebar({
       onRenameCategory(id, editingName.trim());
       setEditingCatId(null);
     }
+  };
+
+  // Helper component for recursive subcategories rendering
+  const RecursiveSubcategoryList = ({ subcategories, parentId, depth = 1 }: { subcategories: any[], parentId: string, depth?: number }) => {
+    return (
+      <motion.div
+        initial={{ height: 0, opacity: 0 }}
+        animate={{ height: 'auto', opacity: 1 }}
+        exit={{ height: 0, opacity: 0 }}
+        transition={{ duration: 0.12, ease: 'easeOut' }}
+        className={`pl-${Math.min(depth * 3 + 1, 12)} overflow-hidden border-l border-white/5 ml-${depth === 1 ? '3.5' : '1.5'} space-y-0.5 mt-0.5`}
+      >
+        {subcategories.map((sub: any) => {
+          const isSubActive = activeCategoryId === sub.id;
+          const isExpanded = expandedCats.includes(sub.id);
+          const hasChildren = sub.subcategories && sub.subcategories.length > 0;
+          return (
+            <div key={sub.id} className="w-full">
+              <button
+                onClick={(e) => {
+                  if (hasChildren && e.clientX < 100) { // Naive click target, or just toggle and select
+                    toggleCat(sub.id);
+                  }
+                  onSelectCategory(sub.id);
+                }}
+                className={`w-full flex items-center justify-between rounded px-2 py-1 text-left text-[11px] border transition-all cursor-pointer ${
+                  isSubActive
+                    ? 'bg-blue-600/15 border-blue-500/30 text-blue-400 font-bold shadow-sm'
+                    : 'border-transparent text-gray-500 hover:text-gray-300 hover:bg-white/5'
+                }`}
+              >
+                <div className="flex items-center gap-1.5 truncate">
+                  {hasChildren ? (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleCat(sub.id);
+                      }}
+                      className="p-0.5 hover:text-white"
+                    >
+                      {isExpanded ? <ChevronDown className="w-2.5 h-2.5" /> : <ChevronRight className="w-2.5 h-2.5" />}
+                    </button>
+                  ) : (
+                    <span className="w-1.5 h-1.5 rounded-full bg-current opacity-50 shrink-0 mx-1" />
+                  )}
+                  <span className="truncate">{sub.name}</span>
+                </div>
+              </button>
+              
+              <AnimatePresence initial={false}>
+                {hasChildren && isExpanded && (
+                  <RecursiveSubcategoryList subcategories={sub.subcategories} parentId={sub.id} depth={depth + 1} />
+                )}
+              </AnimatePresence>
+            </div>
+          );
+        })}
+      </motion.div>
+    );
   };
 
   // Static/Protected categories that cannot be renamed, deleted, or moved
@@ -263,128 +344,165 @@ export default function Sidebar({
             )}
           </AnimatePresence>
 
-          <div className="space-y-0.5" id="categories-list-container">
+          <div className="space-y-1" id="categories-list-container">
             {categories.map((cat, index) => {
               const Icon = iconMap[cat.icon || ''] || Tag;
               const isActive = activeCategoryId === cat.id;
               const isEdit = editingCatId === cat.id;
               const protect = isProtected(cat.id);
+              const hasSubcategories = cat.subcategories && cat.subcategories.length > 0;
+              const isExpanded = expandedCategories[cat.id];
 
               return (
-                <motion.div
-                  layoutId={`cat-item-${cat.id}`}
-                  key={cat.id}
-                  className={`group relative flex items-center justify-between rounded px-2 py-1.5 transition-all text-xs border ${
-                    isActive
-                      ? 'bg-blue-600/10 border-blue-500/20 text-blue-400'
-                      : 'border-transparent text-gray-400 hover:text-gray-200 hover:bg-white/5'
-                  }`}
-                  id={`category-${cat.id}`}
-                >
-                  {/* Category Link or Inline Edit */}
-                  <div
-                    className="flex-1 flex items-center gap-2 cursor-pointer select-none min-w-0"
-                    onClick={() => !isEdit && onSelectCategory(cat.id)}
+                <div key={cat.id} className="space-y-0.5">
+                  <motion.div
+                    layoutId={`cat-item-${cat.id}`}
+                    className={`group relative flex items-center justify-between rounded px-2 py-1.5 transition-all text-xs border ${
+                      isActive
+                        ? 'bg-blue-600/10 border-blue-500/20 text-blue-400'
+                        : 'border-transparent text-gray-400 hover:text-gray-200 hover:bg-white/5'
+                    }`}
+                    id={`category-${cat.id}`}
                   >
-                    <Icon className={`w-3.5 h-3.5 shrink-0 ${isActive ? 'text-blue-400' : 'text-gray-500 group-hover:text-gray-400'}`} />
-                    
-                    {isEdit ? (
-                      <input
-                        type="text"
-                        value={editingName}
-                        onChange={(e) => setEditingName(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') saveEdit(cat.id);
-                          if (e.key === 'Escape') setEditingCatId(null);
-                        }}
-                        className="bg-black/60 border border-white/15 rounded px-1 py-0.5 text-[11px] text-white outline-none w-full focus:border-blue-500"
-                        autoFocus
-                        onClick={(e) => e.stopPropagation()}
-                        id={`edit-cat-name-${cat.id}`}
-                      />
-                    ) : (
-                      <span className="font-medium truncate">{cat.name}</span>
-                    )}
-                  </div>
+                    {/* Category Link or Inline Edit */}
+                    <div
+                      className="flex-1 flex items-center gap-1.5 cursor-pointer select-none min-w-0"
+                      onClick={() => {
+                        if (!isEdit) {
+                          onSelectCategory(cat.id);
+                          if (hasSubcategories) {
+                            setExpandedCategories(prev => ({ ...prev, [cat.id]: !prev[cat.id] }));
+                          }
+                        }
+                      }}
+                    >
+                      {/* Arrow before category if there is subcategories */}
+                      <div className="w-4 h-4 flex items-center justify-center shrink-0">
+                        {hasSubcategories ? (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setExpandedCategories(prev => ({ ...prev, [cat.id]: !prev[cat.id] }));
+                            }}
+                            className="p-0.5 rounded text-gray-500 hover:text-white hover:bg-white/5 transition-colors cursor-pointer"
+                          >
+                            {isExpanded ? (
+                              <ChevronDown className="w-3 h-3" />
+                            ) : (
+                              <ChevronRight className="w-3 h-3" />
+                            )}
+                          </button>
+                        ) : null}
+                      </div>
 
-                  {/* Actions (Only visible for custom, non-protected categories on hover) */}
-                  {!protect && (
-                    <div className="opacity-0 group-hover:opacity-100 flex items-center gap-0.5 ml-1.5 transition-opacity shrink-0 bg-[#161616] py-0.5 px-0.5 rounded border border-white/5">
+                      <Icon className={`w-3.5 h-3.5 shrink-0 ${isActive ? 'text-blue-400' : 'text-gray-500 group-hover:text-gray-400'}`} />
+                      
                       {isEdit ? (
-                        <>
-                          <button
-                            onClick={() => saveEdit(cat.id)}
-                            className="p-0.5 hover:text-emerald-400 text-gray-500"
-                            title="Save"
-                            id={`save-cat-edit-${cat.id}`}
-                          >
-                            <Check className="w-2.5 h-2.5" />
-                          </button>
-                          <button
-                            onClick={() => setEditingCatId(null)}
-                            className="p-0.5 hover:text-rose-400 text-gray-500"
-                            title="Cancel"
-                            id={`cancel-cat-edit-${cat.id}`}
-                          >
-                            <X className="w-2.5 h-2.5" />
-                          </button>
-                        </>
+                        <input
+                          type="text"
+                          value={editingName}
+                          onChange={(e) => setEditingName(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') saveEdit(cat.id);
+                            if (e.key === 'Escape') setEditingCatId(null);
+                          }}
+                          className="bg-black/60 border border-white/15 rounded px-1 py-0.5 text-[11px] text-white outline-none w-full focus:border-blue-500"
+                          autoFocus
+                          onClick={(e) => e.stopPropagation()}
+                          id={`edit-cat-name-${cat.id}`}
+                        />
                       ) : (
-                        <>
-                          {/* Reordering */}
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onReorderCategory(cat.id, 'up');
-                            }}
-                            disabled={index === 6} // First custom item (0-5 are protected default categories)
-                            className="p-0.5 hover:text-white text-gray-600 disabled:opacity-20 disabled:hover:text-gray-600"
-                            title="Move Up"
-                            id={`move-up-cat-${cat.id}`}
-                          >
-                            <ArrowUp className="w-2.5 h-2.5" />
-                          </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onReorderCategory(cat.id, 'down');
-                            }}
-                            disabled={index === categories.length - 1}
-                            className="p-0.5 hover:text-white text-gray-600 disabled:opacity-20 disabled:hover:text-gray-600"
-                            title="Move Down"
-                            id={`move-down-cat-${cat.id}`}
-                          >
-                            <ArrowDown className="w-2.5 h-2.5" />
-                          </button>
-                          {/* Editing */}
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              startEditing(cat);
-                            }}
-                            className="p-0.5 hover:text-blue-400 text-gray-500"
-                            title="Rename"
-                            id={`edit-cat-btn-${cat.id}`}
-                          >
-                            <Edit2 className="w-2.5 h-2.5" />
-                          </button>
-                          {/* Deleting */}
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onDeleteCategory(cat.id);
-                            }}
-                            className="p-0.5 hover:text-rose-400 text-gray-500"
-                            title="Delete"
-                            id={`delete-cat-btn-${cat.id}`}
-                          >
-                            <Trash2 className="w-2.5 h-2.5" />
-                          </button>
-                        </>
+                        <span className="font-medium truncate">{cat.name}</span>
                       )}
                     </div>
-                  )}
-                </motion.div>
+
+                    {/* Actions (Only visible for custom, non-protected categories on hover) */}
+                    {!protect && (
+                      <div className="opacity-0 group-hover:opacity-100 flex items-center gap-0.5 ml-1.5 transition-opacity shrink-0 bg-[#161616] py-0.5 px-0.5 rounded border border-white/5">
+                        {isEdit ? (
+                          <>
+                            <button
+                              onClick={() => saveEdit(cat.id)}
+                              className="p-0.5 hover:text-emerald-400 text-gray-500 cursor-pointer"
+                              title="Save"
+                              id={`save-cat-edit-${cat.id}`}
+                            >
+                              <Check className="w-2.5 h-2.5" />
+                            </button>
+                            <button
+                              onClick={() => setEditingCatId(null)}
+                              className="p-0.5 hover:text-rose-400 text-gray-500 cursor-pointer"
+                              title="Cancel"
+                              id={`cancel-cat-edit-${cat.id}`}
+                            >
+                              <X className="w-2.5 h-2.5" />
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            {/* Reordering */}
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onReorderCategory(cat.id, 'up');
+                              }}
+                              disabled={index === 6} // First custom item (0-5 are protected default categories)
+                              className="p-0.5 hover:text-white text-gray-600 disabled:opacity-20 disabled:hover:text-gray-600 cursor-pointer"
+                              title="Move Up"
+                              id={`move-up-cat-${cat.id}`}
+                            >
+                              <ArrowUp className="w-2.5 h-2.5" />
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onReorderCategory(cat.id, 'down');
+                              }}
+                              disabled={index === categories.length - 1}
+                              className="p-0.5 hover:text-white text-gray-600 disabled:opacity-20 disabled:hover:text-gray-600 cursor-pointer"
+                              title="Move Down"
+                              id={`move-down-cat-${cat.id}`}
+                            >
+                              <ArrowDown className="w-2.5 h-2.5" />
+                            </button>
+                            {/* Editing */}
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                startEditing(cat);
+                              }}
+                              className="p-0.5 hover:text-blue-400 text-gray-500 cursor-pointer"
+                              title="Rename"
+                              id={`edit-cat-btn-${cat.id}`}
+                            >
+                              <Edit2 className="w-2.5 h-2.5" />
+                            </button>
+                            {/* Deleting */}
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onDeleteCategory(cat.id);
+                              }}
+                              className="p-0.5 hover:text-rose-400 text-gray-500 cursor-pointer"
+                              title="Delete"
+                              id={`delete-cat-btn-${cat.id}`}
+                            >
+                              <Trash2 className="w-2.5 h-2.5" />
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </motion.div>
+
+                  {/* Render Subcategories list */}
+                  <AnimatePresence initial={false}>
+                    {hasSubcategories && isExpanded && (
+                      <RecursiveSubcategoryList subcategories={cat.subcategories!} parentId={cat.id} depth={1} />
+                    )}
+                  </AnimatePresence>
+                </div>
               );
             })}
           </div>

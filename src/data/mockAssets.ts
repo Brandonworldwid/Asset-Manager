@@ -2,10 +2,45 @@ import { Asset, Category } from '../types';
 
 export const DEFAULT_CATEGORIES: Category[] = [
   { id: 'cat-all', name: 'All Assets', icon: 'FolderArchive' },
-  { id: 'cat-3d', name: '3D Assets', icon: 'Box' },
-  { id: 'cat-plants', name: '3D Plants', icon: 'Flower' },
-  { id: 'cat-surfaces', name: 'Surfaces', icon: 'Layers' },
-  { id: 'cat-atlases', name: 'Atlases', icon: 'Grid' },
+  {
+    id: 'cat-3d',
+    name: '3D Assets',
+    icon: 'Box',
+    subcategories: [
+      { id: 'sub-rocks', name: 'Rocks & Boulders' },
+      { id: 'sub-cliffs', name: 'Cliffs & Caves' },
+      { id: 'sub-structures', name: 'Ruins & Concrete' },
+    ],
+  },
+  {
+    id: 'cat-plants',
+    name: '3D Plants',
+    icon: 'Flower',
+    subcategories: [
+      { id: 'sub-grasses', name: 'Grasses & Groundcover' },
+      { id: 'sub-flowers', name: 'Wild Flowers' },
+      { id: 'sub-trees', name: 'Shrubs & Saplings' },
+    ],
+  },
+  {
+    id: 'cat-surfaces',
+    name: 'Surfaces',
+    icon: 'Layers',
+    subcategories: [
+      { id: 'sub-soil', name: 'Forest Soil & Mud' },
+      { id: 'sub-rock-surf', name: 'Rocky Cliff Surfaces' },
+      { id: 'sub-brick', name: 'Pavement & Brick' },
+    ],
+  },
+  {
+    id: 'cat-atlases',
+    name: 'Atlases',
+    icon: 'Grid',
+    subcategories: [
+      { id: 'sub-leaves', name: 'Scatter Leaves' },
+      { id: 'sub-decals', name: 'Stains & Graffiti' },
+    ],
+  },
   { id: 'cat-favorites', name: 'Favorites', icon: 'Star' },
 ];
 
@@ -19,7 +54,7 @@ export const INITIAL_ASSETS: Asset[] = [
     resolution: '4k',
     thumbnailUrl: 'https://images.unsplash.com/photo-1504198453319-5ce911bafcde?auto=format&fit=crop&w=600&h=600&q=80',
     tags: ['rock', 'cliff', 'nordic', 'basalt', 'coastal'],
-    categories: ['cat-3d', 'cat-favorites'],
+    categories: ['cat-3d', 'sub-rocks', 'cat-favorites'],
     scannedPath: '/Users/creative/Downloads/Megascans/3d_rock_basalt_uivvd',
     dateAdded: '2026-06-20T14:22:10Z',
     description: 'A sharp coastal basalt rock block with heavy weathering and detailed mineral lines, perfect for rugged cliffs and shorelines.',
@@ -44,7 +79,7 @@ export const INITIAL_ASSETS: Asset[] = [
     resolution: '8k',
     thumbnailUrl: 'https://images.unsplash.com/photo-1518531933037-91b2f5f229cc?auto=format&fit=crop&w=600&h=600&q=80',
     tags: ['soil', 'forest', 'needle', 'moss', 'ground'],
-    categories: ['cat-surfaces'],
+    categories: ['cat-surfaces', 'sub-soil'],
     scannedPath: '/Users/creative/Downloads/Megascans/surface_pine_needle_ukfks',
     dateAdded: '2026-06-24T09:15:30Z',
     description: 'Rich forest ground surface texture covered in dry pine needles, tiny pine cones, organic forest debris, and light patches of moss.',
@@ -69,7 +104,7 @@ export const VIRTUAL_DOWNLOADS_ASSETS: Asset[] = [
     resolution: '2k',
     thumbnailUrl: 'https://images.unsplash.com/photo-1543257580-7269da773bf5?auto=format&fit=crop&w=600&h=600&q=80',
     tags: ['rock', 'mossy', 'forest', 'boulder', 'ancient'],
-    categories: ['cat-3d'],
+    categories: ['cat-3d', 'sub-rocks'],
     scannedPath: '/Users/creative/Downloads/Megascans/3d_rock_mossy_vdvmd',
     dateAdded: '2026-06-25T02:00:00Z',
     description: 'A moss-covered damp forest boulder with organic sediment and deep cracks. Scanned natively from ancient woodland.',
@@ -94,7 +129,7 @@ export const VIRTUAL_DOWNLOADS_ASSETS: Asset[] = [
     resolution: '4k',
     thumbnailUrl: 'https://images.unsplash.com/photo-1509316975850-ff9c5deb0cd9?auto=format&fit=crop&w=600&h=600&q=80',
     tags: ['plant', 'grass', 'wild', 'foliage', 'green'],
-    categories: ['cat-plants'],
+    categories: ['cat-plants', 'sub-grasses'],
     scannedPath: '/Users/creative/Downloads/Megascans/3dplant_wild_grass_tfnsb',
     dateAdded: '2026-06-25T02:01:00Z',
     description: 'A dense cluster of wild green field grass with slight weathering and individual blade variations. Low-poly optimized with high-res leaf textures.',
@@ -118,7 +153,7 @@ export const VIRTUAL_DOWNLOADS_ASSETS: Asset[] = [
     resolution: '4k',
     thumbnailUrl: 'https://images.unsplash.com/photo-1509316975850-ff9c5deb0cd9?auto=format&fit=crop&w=600&h=600&q=80', // Replace or use default
     tags: ['soil', 'desert', 'cracked', 'dry', 'mud'],
-    categories: ['cat-surfaces'],
+    categories: ['cat-surfaces', 'sub-soil'],
     scannedPath: '/Users/creative/Downloads/Megascans/surface_cracked_soil_ukfks',
     dateAdded: '2026-06-25T02:02:00Z',
     description: 'Dry, baking hot desert mud flats showing beautiful crack networks, sandy recesses, and sun-baked silt layers.',
@@ -137,7 +172,7 @@ export const VIRTUAL_DOWNLOADS_ASSETS: Asset[] = [
     resolution: '4k',
     thumbnailUrl: 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=600&h=600&q=80', // Beautiful forest/autumn
     tags: ['atlas', 'leaves', 'autumn', 'maple', 'foliage'],
-    categories: ['cat-atlases'],
+    categories: ['cat-atlases', 'sub-leaves'],
     scannedPath: '/Users/creative/Downloads/Megascans/atlas_autumn_leaves_zjsie',
     dateAdded: '2026-06-25T02:03:00Z',
     description: 'High resolution scan of autumn maple leaves, containing individual leaves with transparent backgrounds for particle scatter setup.',
@@ -156,7 +191,7 @@ export const VIRTUAL_DOWNLOADS_ASSETS: Asset[] = [
     resolution: '8k',
     thumbnailUrl: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=600&h=600&q=80',
     tags: ['brown', 'bricks', 'house', 'brick', 'wall', 'window', 'cmb_scatter', 'scatter', 'cmb_asset', 'modular', 'building', 'nordic', 'classical', 'sweden', 'europe', 'urban', 'exterior', 'architecture'],
-    categories: ['cat-3d'],
+    categories: ['cat-3d', 'sub-structures'],
     scannedPath: '/Users/creative/Downloads/Megascans/3d_building_modular_1st_floor_ulxqchsdw',
     dateAdded: '2026-06-25T03:00:00Z',
     description: 'A premium Nordic-Classical modular building 1st floor kit scanned in Gothenburg, Sweden. Features high-resolution 8K brick textures, wood fixtures, clean architectural lines, and full Level of Detail (LOD) geometries.',

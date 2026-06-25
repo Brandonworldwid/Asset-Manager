@@ -22,7 +22,16 @@ import {
   Star,
   FileArchive,
   FolderOpen,
-  Settings
+  Settings,
+  LayoutGrid,
+  Leaf,
+  Folder,
+  Tag,
+  Package,
+  Flame,
+  Trees,
+  ChevronRight,
+  Library
 } from 'lucide-react';
 
 import { Asset, Category } from './types';
@@ -31,6 +40,23 @@ import Sidebar from './components/Sidebar';
 import DirectoryScanner from './components/DirectoryScanner';
 import AssetGrid from './components/AssetGrid';
 import AssetDetails from './components/AssetDetails';
+
+const iconMap: Record<string, React.ComponentType<any>> = {
+  FolderArchive: Library,
+  Box: Box,
+  Flower: Leaf,
+  Leaf: Leaf,
+  Layers: Layers,
+  Grid: LayoutGrid,
+  Star: Star,
+  Folder: Folder,
+  Tag: Tag,
+  Sparkles: Sparkles,
+  Package: Package,
+  Flame: Flame,
+  Trees: Trees,
+  Compass: Compass,
+};
 
 export default function App() {
   // ---------------------------------------------------------------------------
@@ -67,6 +93,14 @@ export default function App() {
   const [isSettingsVibrating, setIsSettingsVibrating] = useState<boolean>(false);
   const [forceSaveButtonRed, setForceSaveButtonRed] = useState<boolean>(false);
 
+  // Categories editing in Settings states
+  const [activeSettingsTab, setActiveSettingsTab] = useState<'personalization' | 'categories'>('personalization');
+  const [draftCategoriesList, setDraftCategoriesList] = useState<Category[]>([]);
+  const [categoryNavPath, setCategoryNavPath] = useState<string[]>([]);
+  const [newSubcategoryInput, setNewSubcategoryInput] = useState<string>('');
+  const [newMainCategoryInput, setNewMainCategoryInput] = useState<string>('');
+  const [activeIconSelectorCatId, setActiveIconSelectorCatId] = useState<string | null>(null);
+
   // Batch action states & confirmation
   const [showBatchEditModal, setShowBatchEditModal] = useState<boolean>(false);
   const [batchZipPopupAction, setBatchZipPopupAction] = useState<'zip' | 'unzip' | null>(null);
@@ -76,10 +110,19 @@ export default function App() {
   useEffect(() => {
     if (showSettingsModal) {
       setDraftHomePageColumns(homePageColumns);
+      setDraftCategoriesList(JSON.parse(JSON.stringify(categories)));
+      
+      const firstParent = categories.find(c => c.id !== 'cat-all' && c.id !== 'cat-favorites') || categories[0];
+      setSelectedParentCategoryId(firstParent ? firstParent.id : '');
+      
+      setNewSubcategoryInput('');
+      setNewMainCategoryInput('');
+      setActiveIconSelectorCatId(null);
+      setActiveSettingsTab('personalization');
       setIsSettingsVibrating(false);
       setForceSaveButtonRed(false);
     }
-  }, [showSettingsModal, homePageColumns]);
+  }, [showSettingsModal, homePageColumns, categories]);
 
   // Save homePageColumns to localStorage
   useEffect(() => {
@@ -703,18 +746,31 @@ export default function App() {
                 {/* 2. Category Move */}
                 <div>
                   <h4 className="text-[10px] font-mono font-bold text-gray-400 uppercase tracking-wider mb-2">Move to Category</h4>
-                  <div className="flex flex-wrap gap-1.5">
-                    {categories
-                      .filter((c) => c.id !== 'cat-all' && c.id !== 'cat-favorites')
-                      .map((cat) => (
+                  <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto scrollbar-thin scrollbar-thumb-white/10 pr-2">
+                    {(() => {
+                      const flattenedCats: { id: string; name: string; pathName: string }[] = [];
+                      const traverse = (cats: Category[], parentPathName: string = '') => {
+                        cats.forEach(c => {
+                          if (c.id === 'cat-all' || c.id === 'cat-favorites') return;
+                          const currentPath = parentPathName ? `${parentPathName} > ${c.name}` : c.name;
+                          flattenedCats.push({ id: c.id, name: c.name, pathName: currentPath });
+                          if (c.subcategories) {
+                            traverse(c.subcategories, currentPath);
+                          }
+                        });
+                      };
+                      traverse(categories);
+                      return flattenedCats.map(cat => (
                         <button
                           key={cat.id}
                           onClick={() => handleBatchMoveCategory(cat.id)}
-                          className="px-2.5 py-1.5 bg-white/5 hover:bg-blue-600 hover:text-white border border-white/5 rounded-lg text-xs font-semibold text-gray-300 transition-all cursor-pointer"
+                          className="px-2.5 py-1.5 bg-white/5 hover:bg-blue-600 hover:text-white border border-white/5 rounded-lg text-[10px] font-semibold text-gray-300 transition-all cursor-pointer"
+                          title={cat.pathName}
                         >
-                          {cat.name}
+                          {cat.pathName}
                         </button>
-                      ))}
+                      ));
+                    })()}
                   </div>
                 </div>
 
@@ -917,148 +973,540 @@ export default function App() {
 
       {/* Settings Modal (Floating pop-up with blurred background) */}
       <AnimatePresence>
-        {showSettingsModal && (
-          <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[100] flex items-center justify-center p-4" id="settings-modal-overlay">
-            <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className="w-full max-w-2xl bg-[#111112] border border-white/10 rounded-2xl shadow-2xl overflow-hidden flex flex-col h-[400px]"
-              id="settings-modal-window"
-            >
-              {/* Settings Header */}
-              <div className="px-5 py-4 bg-white/2 border-b border-white/5 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Settings className="w-4 h-4 text-gray-400" />
-                  <span className="text-xs font-sans font-extrabold text-white uppercase tracking-wider">Preferences & Preferences</span>
-                </div>
-                <button
-                  onClick={() => {
-                    const isDirty = draftHomePageColumns !== homePageColumns;
-                    if (isDirty) {
-                      setIsSettingsVibrating(true);
-                      setForceSaveButtonRed(true);
-                      setTimeout(() => {
-                        setIsSettingsVibrating(false);
-                        setForceSaveButtonRed(false);
-                      }, 1000);
-                    } else {
-                      setShowSettingsModal(false);
-                    }
-                  }}
-                  className="p-1.5 text-gray-500 hover:text-white rounded hover:bg-white/5 transition-colors cursor-pointer"
-                  id="settings-close-x"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
+        {showSettingsModal && (() => {
+          const isPersonalizationDirty = draftHomePageColumns !== homePageColumns;
+          const isCategoriesDirty = JSON.stringify(categories) !== JSON.stringify(draftCategoriesList);
+          const isSettingsDirty = isPersonalizationDirty || isCategoriesDirty;
+          
+          const findCategoryByPath = (list: any[], path: string[]): any => {
+            if (path.length === 0) return null;
+            let currentList = list;
+            let target = null;
+            for (let i = 0; i < path.length; i++) {
+              target = currentList.find(c => c.id === path[i]);
+              if (!target) return null;
+              currentList = target.subcategories || [];
+            }
+            return target;
+          };
 
-              {/* Settings Body Layout: Vertical Sidebar + Pane */}
-              <div className="flex-1 flex overflow-hidden">
-                {/* Left Sidebar Menu for Vertical Tabs */}
-                <div className="w-48 border-r border-white/5 bg-[#0D0D0E] p-3 flex flex-col gap-1 shrink-0">
+          const selectedParentCategory = findCategoryByPath(draftCategoriesList, categoryNavPath);
+          const subCount = selectedParentCategory?.subcategories?.length || 0;
+
+          // Action handlers for categories drafting inside Settings
+          const handleChangeDraftCategoryIcon = (catId: string, iconName: string) => {
+            setDraftCategoriesList(prev => prev.map(c => c.id === catId ? { ...c, icon: iconName } : c));
+          };
+
+          const handleRenameDraftCategory = (catId: string, newName: string) => {
+            setDraftCategoriesList(prev => prev.map(c => c.id === catId ? { ...c, name: newName } : c));
+          };
+
+          const handleDeleteDraftCategory = (catId: string) => {
+            setDraftCategoriesList(prev => prev.filter(c => c.id !== catId));
+            if (categoryNavPath[0] === catId) {
+              setCategoryNavPath([]);
+            }
+          };
+
+          const handleAddDraftCategory = (name: string) => {
+            if (!name.trim()) return;
+            const newId = `cat-custom-${Math.random().toString(36).substring(2, 9)}`;
+            const newCat: Category = {
+              id: newId,
+              name: name.trim(),
+              icon: 'Tag',
+              subcategories: []
+            };
+            setDraftCategoriesList(prev => [...prev, newCat]);
+            setCategoryNavPath([newId]);
+          };
+
+          const updateNestedCategory = (list: any[], path: string[], updateFn: (cat: any) => any): any[] => {
+            if (path.length === 0) return list;
+            const [currentId, ...restPath] = path;
+            return list.map(c => {
+              if (c.id === currentId) {
+                if (restPath.length === 0) {
+                  return updateFn(c);
+                } else {
+                  return {
+                    ...c,
+                    subcategories: updateNestedCategory(c.subcategories || [], restPath, updateFn)
+                  };
+                }
+              }
+              return c;
+            });
+          };
+
+          const handleAddDraftSubcategory = (path: string[], subName: string) => {
+            if (!subName.trim() || path.length === 0) return;
+            setDraftCategoriesList(prev => updateNestedCategory(prev, path, (c) => {
+              const subs = c.subcategories || [];
+              if (path.length > 0 && path.length <= 8 && subs.length >= 8 && path.length > 1) {
+                // If it's a nested subcategory (depth > 1), enforce 8 items limit
+                return c;
+              }
+              const newSub = {
+                id: `sub-${Math.random().toString(36).substring(2, 9)}`,
+                name: subName.trim(),
+                subcategories: []
+              };
+              return {
+                ...c,
+                subcategories: [...subs, newSub]
+              };
+            }));
+          };
+
+          const handleDeleteDraftSubcategory = (path: string[], subId: string) => {
+            setDraftCategoriesList(prev => updateNestedCategory(prev, path, (c) => {
+              return {
+                ...c,
+                subcategories: (c.subcategories || []).filter((sub: any) => sub.id !== subId)
+              };
+            }));
+          };
+
+          return (
+            <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[100] flex items-center justify-center p-4" id="settings-modal-overlay">
+              <motion.div
+                initial={{ scale: 0.95, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.95, opacity: 0 }}
+                className="w-full max-w-3xl bg-[#111112] border border-white/10 rounded-2xl shadow-2xl overflow-hidden flex flex-col h-[520px]"
+                id="settings-modal-window"
+              >
+                {/* Settings Header */}
+                <div className="px-5 py-4 bg-white/2 border-b border-white/5 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Settings className="w-4 h-4 text-gray-400" />
+                    <span className="text-xs font-sans font-extrabold text-white uppercase tracking-wider">Preferences & Categories Settings</span>
+                  </div>
                   <button
-                    className="w-full flex items-center gap-2.5 px-3 py-2 bg-blue-600/10 border border-blue-500/20 text-blue-400 font-bold rounded-lg text-xs text-left cursor-default"
+                    onClick={() => {
+                      if (isSettingsDirty) {
+                        setIsSettingsVibrating(true);
+                        setForceSaveButtonRed(true);
+                        setTimeout(() => {
+                          setIsSettingsVibrating(false);
+                          setForceSaveButtonRed(false);
+                        }, 1000);
+                      } else {
+                        setShowSettingsModal(false);
+                      }
+                    }}
+                    className="p-1.5 text-gray-500 hover:text-white rounded hover:bg-white/5 transition-colors cursor-pointer"
+                    id="settings-close-x"
                   >
-                    <Sparkles className="w-3.5 h-3.5" />
-                    <span>Personalization</span>
-                    {draftHomePageColumns !== homePageColumns && (
-                      <span className="text-red-500 font-bold text-sm leading-none select-none">*</span>
-                    )}
+                    <X className="w-4 h-4" />
                   </button>
                 </div>
 
-                {/* Right Content Pane */}
-                <div className="flex-1 p-6 bg-[#111112] flex flex-col justify-between">
-                  <div>
-                    <h4 className="text-xs font-bold text-white uppercase tracking-wider mb-1">
-                      Homepage Personalization
-                    </h4>
-                    <p className="text-[11px] text-gray-500 leading-relaxed mb-6">
-                      Customize how the Megascan library assets are visually organized on your central dashboard.
-                    </p>
+                {/* Settings Body Layout: Vertical Sidebar + Pane */}
+                <div className="flex-1 flex overflow-hidden min-h-0">
+                  {/* Left Sidebar Menu for Vertical Tabs */}
+                  <div className="w-48 border-r border-white/5 bg-[#0D0D0E] p-3 flex flex-col gap-1 shrink-0">
+                    <button
+                      onClick={() => setActiveSettingsTab('personalization')}
+                      className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs text-left transition-colors cursor-pointer ${
+                        activeSettingsTab === 'personalization'
+                          ? 'bg-blue-600/10 border border-blue-500/20 text-blue-400 font-bold'
+                          : 'border border-transparent text-gray-400 hover:text-white hover:bg-white/5'
+                      }`}
+                    >
+                      <Sparkles className="w-3.5 h-3.5" />
+                      <span className="flex-1 truncate">Personalization</span>
+                      {isPersonalizationDirty && (
+                        <span className="text-red-500 font-bold text-[10px] leading-none select-none">*</span>
+                      )}
+                    </button>
 
-                    <div className="space-y-3.5">
-                      <div className="flex items-center gap-1.5">
-                        <label className="text-xs font-bold text-gray-300">
-                          Grid Columns
-                        </label>
-                        {draftHomePageColumns !== homePageColumns && (
-                          <span className="text-red-500 font-extrabold text-sm select-none" title="Unsaved changes">*</span>
-                        )}
-                      </div>
-                      <p className="text-[10px] text-gray-500">
-                        Select how many horizontal asset cards to view on the main screen (Min: 3, Max: 8).
-                      </p>
-
-                      <div className="flex items-center gap-2.5 mt-2">
-                        <button
-                          onClick={() => setDraftHomePageColumns(prev => Math.max(3, prev - 1))}
-                          className="w-8 h-8 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-gray-300 font-bold flex items-center justify-center cursor-pointer select-none transition-colors"
-                        >
-                          -
-                        </button>
-                        <input
-                          type="number"
-                          min={3}
-                          max={8}
-                          value={draftHomePageColumns}
-                          onChange={(e) => {
-                            const val = parseInt(e.target.value, 10);
-                            if (!isNaN(val)) {
-                              setDraftHomePageColumns(val);
-                            }
-                          }}
-                          onBlur={() => {
-                            setDraftHomePageColumns(prev => Math.min(8, Math.max(3, prev)));
-                          }}
-                          className="w-16 h-8 text-center bg-[#161618] border border-white/10 rounded-lg text-white font-mono font-bold text-xs focus:border-blue-500 outline-none"
-                        />
-                        <button
-                          onClick={() => setDraftHomePageColumns(prev => Math.min(8, prev + 1))}
-                          className="w-8 h-8 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-gray-300 font-bold flex items-center justify-center cursor-pointer select-none transition-colors"
-                        >
-                          +
-                        </button>
-                      </div>
-                    </div>
+                    <button
+                      onClick={() => setActiveSettingsTab('categories')}
+                      className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs text-left transition-colors cursor-pointer ${
+                        activeSettingsTab === 'categories'
+                          ? 'bg-blue-600/10 border border-blue-500/20 text-blue-400 font-bold'
+                          : 'border border-transparent text-gray-400 hover:text-white hover:bg-white/5'
+                      }`}
+                    >
+                      <LayoutGrid className="w-3.5 h-3.5" />
+                      <span className="flex-1 truncate">Categories</span>
+                      {isCategoriesDirty && (
+                        <span className="text-red-500 font-bold text-[10px] leading-none select-none">*</span>
+                      )}
+                    </button>
                   </div>
 
-                  {/* Footer (Only visible if the settings are dirty/edited) */}
-                  {draftHomePageColumns !== homePageColumns && (
-                    <div className="flex items-center justify-end gap-2 border-t border-white/5 pt-4">
-                      <button
-                        onClick={() => {
-                          setDraftHomePageColumns(homePageColumns);
-                          setShowSettingsModal(false);
-                        }}
-                        className="px-4 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-semibold text-gray-300 transition-all cursor-pointer"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        onClick={() => {
-                          setHomePageColumns(draftHomePageColumns);
-                          setShowSettingsModal(false);
-                          notify("Personalization settings updated successfully!");
-                        }}
-                        className={`px-4 py-1.5 rounded-lg text-xs font-bold text-white transition-all cursor-pointer ${
-                          isSettingsVibrating ? 'animate-shake' : ''
-                        } ${
-                          forceSaveButtonRed 
-                            ? 'bg-red-600 hover:bg-red-500 border border-red-500' 
-                            : 'bg-blue-600 hover:bg-blue-500 border border-blue-500'
-                        }`}
-                      >
-                        Save Settings
-                      </button>
-                    </div>
-                  )}
+                  {/* Right Content Pane */}
+                  <div className="flex-1 p-6 bg-[#111112] flex flex-col justify-between min-h-0">
+                    
+                    {activeSettingsTab === 'personalization' ? (
+                      <div>
+                        <h4 className="text-xs font-bold text-white uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                          <span>Homepage Personalization</span>
+                          {isPersonalizationDirty && (
+                            <span className="text-red-500 font-extrabold text-sm leading-none" title="Unsaved changes">*</span>
+                          )}
+                        </h4>
+                        <p className="text-[11px] text-gray-500 leading-relaxed mb-6">
+                          Customize how the Megascan library assets are visually organized on your central dashboard.
+                        </p>
+
+                        <div className="space-y-3.5">
+                          <div className="flex items-center gap-1.5">
+                            <label className="text-xs font-bold text-gray-300">
+                              Grid Columns
+                            </label>
+                            {isPersonalizationDirty && (
+                              <span className="text-red-500 font-extrabold text-sm select-none" title="Unsaved changes">*</span>
+                            )}
+                          </div>
+                          <p className="text-[10px] text-gray-500">
+                            Select how many horizontal asset cards to view on the main screen (Min: 3, Max: 8).
+                          </p>
+
+                          <div className="flex items-center gap-2.5 mt-2">
+                            <button
+                              onClick={() => setDraftHomePageColumns(prev => Math.max(3, prev - 1))}
+                              className="w-8 h-8 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-gray-300 font-bold flex items-center justify-center cursor-pointer select-none transition-colors"
+                            >
+                              -
+                            </button>
+                            <input
+                              type="number"
+                              min={3}
+                              max={8}
+                              value={draftHomePageColumns}
+                              onChange={(e) => {
+                                const val = parseInt(e.target.value, 10);
+                                if (!isNaN(val)) {
+                                  setDraftHomePageColumns(val);
+                                }
+                              }}
+                              onBlur={() => {
+                                setDraftHomePageColumns(prev => Math.min(8, Math.max(3, prev)));
+                              }}
+                              className="w-16 h-8 text-center bg-[#161618] border border-white/10 rounded-lg text-white font-mono font-bold text-xs focus:border-blue-500 outline-none"
+                            />
+                            <button
+                              onClick={() => setDraftHomePageColumns(prev => Math.min(8, prev + 1))}
+                              className="w-8 h-8 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-gray-300 font-bold flex items-center justify-center cursor-pointer select-none transition-colors"
+                            >
+                              +
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
+                        <h4 className="text-xs font-bold text-white uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                          <span>Categories & Customization</span>
+                          {isCategoriesDirty && (
+                            <span className="text-red-500 font-extrabold text-sm leading-none" title="Unsaved category changes">*</span>
+                          )}
+                        </h4>
+                        <p className="text-[10px] text-gray-500 leading-relaxed mb-4">
+                          Create or delete parent categories, customize icons, and manage up to 8 subcategories each.
+                        </p>
+
+                        {/* Split layout inside Settings */}
+                        <div className="grid grid-cols-12 gap-4 flex-1 min-h-0 overflow-hidden text-xs">
+                          
+                          {/* Left Pane: Categories List (cols-7) */}
+                          <div className="col-span-7 flex flex-col min-h-0 bg-black/10 border border-white/5 rounded-xl p-3">
+                            <div className="flex items-center justify-between mb-2">
+                              <span className="font-mono text-[9px] font-bold text-gray-400 uppercase tracking-wider">Parent Categories</span>
+                              <span className="text-[10px] text-gray-500">Click to edit subcategories</span>
+                            </div>
+
+                            {/* Add Category Form */}
+                            <form
+                              onSubmit={(e) => {
+                                e.preventDefault();
+                                if (newMainCategoryInput.trim()) {
+                                  handleAddDraftCategory(newMainCategoryInput.trim());
+                                  setNewMainCategoryInput('');
+                                }
+                              }}
+                              className="flex gap-1.5 mb-3"
+                            >
+                              <input
+                                type="text"
+                                placeholder="New category name..."
+                                value={newMainCategoryInput}
+                                onChange={(e) => setNewMainCategoryInput(e.target.value)}
+                                className="flex-1 bg-white/5 border border-white/10 rounded px-2 py-1 text-[11px] text-white placeholder:text-gray-600 focus:border-blue-500 outline-none"
+                              />
+                              <button
+                                type="submit"
+                                className="px-2.5 py-1 bg-blue-600 hover:bg-blue-500 text-white rounded text-[11px] font-bold transition-all flex items-center gap-1 cursor-pointer"
+                              >
+                                <Plus className="w-3 h-3" />
+                                <span>Add</span>
+                              </button>
+                            </form>
+
+                            {/* Scrollable list */}
+                            <div className="flex-1 overflow-y-auto space-y-1 pr-1 scrollbar-thin scrollbar-thumb-white/5">
+                              {draftCategoriesList.map((cat) => {
+                                const OptionIcon = iconMap[cat.icon || ''] || Tag;
+                                const isSelected = categoryNavPath[0] === cat.id;
+                                const isProtectedCat = ['cat-all', 'cat-favorites'].includes(cat.id);
+                                const isCustomDeletable = !['cat-all', 'cat-3d', 'cat-plants', 'cat-surfaces', 'cat-atlases', 'cat-favorites'].includes(cat.id);
+
+                                return (
+                                  <div
+                                    key={cat.id}
+                                    onClick={() => setCategoryNavPath([cat.id])}
+                                    className={`relative flex items-center justify-between gap-2 p-1.5 rounded border transition-all cursor-pointer ${
+                                      isSelected
+                                        ? 'bg-blue-600/10 border-blue-500/30 text-blue-400 font-bold'
+                                        : 'bg-white/2 border-transparent text-gray-400 hover:text-white hover:bg-white/5'
+                                    }`}
+                                  >
+                                    <div className="flex items-center gap-2 min-w-0 flex-1">
+                                      {/* Icon Selector Button */}
+                                      <div className="relative">
+                                        <button
+                                          type="button"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setActiveIconSelectorCatId(activeIconSelectorCatId === cat.id ? null : cat.id);
+                                          }}
+                                          className="p-1 rounded bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white transition-colors cursor-pointer"
+                                          title="Change Category Icon"
+                                        >
+                                          <OptionIcon className="w-3.5 h-3.5 shrink-0" />
+                                        </button>
+
+                                        {/* Icon Selector Dropdown Popup */}
+                                        {activeIconSelectorCatId === cat.id && (
+                                          <div className="absolute left-0 top-7 z-50 bg-[#161619] border border-white/10 rounded-lg p-1.5 grid grid-cols-5 gap-1 shadow-2xl w-[160px]">
+                                            {['Box', 'Leaf', 'Layers', 'Grid', 'Star', 'Folder', 'Tag', 'Sparkles', 'Package', 'Flame'].map((iconName) => {
+                                              const PickerIcon = iconMap[iconName] || Tag;
+                                              return (
+                                                <button
+                                                  key={iconName}
+                                                  type="button"
+                                                  onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleChangeDraftCategoryIcon(cat.id, iconName);
+                                                    setActiveIconSelectorCatId(null);
+                                                  }}
+                                                  className="p-1 rounded hover:bg-white/10 text-gray-400 hover:text-white transition-colors flex items-center justify-center cursor-pointer"
+                                                  title={iconName}
+                                                >
+                                                  <PickerIcon className="w-3 h-3" />
+                                                </button>
+                                              );
+                                            })}
+                                          </div>
+                                        )}
+                                      </div>
+
+                                      {/* Category Name (Editable if custom, otherwise text) */}
+                                      {isProtectedCat ? (
+                                        <span className="font-medium truncate text-gray-500">{cat.name}</span>
+                                      ) : (
+                                        <input
+                                          type="text"
+                                          value={cat.name}
+                                          onChange={(e) => handleRenameDraftCategory(cat.id, e.target.value)}
+                                          className="bg-transparent border-b border-transparent focus:border-white/20 outline-none text-[11px] font-medium w-full text-white py-0.5"
+                                          onClick={(e) => e.stopPropagation()}
+                                        />
+                                      )}
+                                    </div>
+
+                                    {/* Subcategories count badge & Delete button */}
+                                    <div className="flex items-center gap-1.5 shrink-0" onClick={(e) => e.stopPropagation()}>
+                                      {cat.subcategories && cat.subcategories.length > 0 && (
+                                        <span className="bg-white/5 text-gray-500 px-1 py-0.5 rounded text-[9px] font-mono">
+                                          {cat.subcategories.length}
+                                        </span>
+                                      )}
+                                      {isCustomDeletable && (
+                                        <button
+                                          type="button"
+                                          onClick={() => handleDeleteDraftCategory(cat.id)}
+                                          className="p-1 text-gray-500 hover:text-red-400 rounded hover:bg-white/5 transition-colors cursor-pointer"
+                                          title="Delete Category"
+                                        >
+                                          <Trash2 className="w-3 h-3" />
+                                        </button>
+                                      )}
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+
+                          {/* Right Pane: Subcategories Management (cols-5) */}
+                          <div className="col-span-5 flex flex-col min-h-0 bg-black/10 border border-white/5 rounded-xl p-3">
+                            {selectedParentCategory ? (
+                              <div className="flex flex-col h-full min-h-0">
+                                <div className="mb-2 flex items-center gap-2">
+                                  {categoryNavPath.length > 1 && (
+                                    <button
+                                      onClick={() => setCategoryNavPath(prev => prev.slice(0, -1))}
+                                      className="p-1 bg-white/5 hover:bg-white/10 border border-white/10 rounded text-gray-400 hover:text-white transition-colors cursor-pointer"
+                                      title="Back to Parent"
+                                    >
+                                      <ChevronLeft className="w-3.5 h-3.5" />
+                                    </button>
+                                  )}
+                                  <div className="min-w-0">
+                                    <div className="font-mono text-[9px] font-bold text-gray-400 uppercase tracking-wider truncate mb-1">
+                                      {categoryNavPath.length > 1 ? 'Nested under' : 'Subcategories of'}
+                                    </div>
+                                    <div className="font-bold text-white text-[12px] truncate">
+                                      {selectedParentCategory.name}
+                                    </div>
+                                  </div>
+                                </div>
+
+                                {/* List of subcategories */}
+                                <div className="flex-1 overflow-y-auto space-y-1.5 my-2 pr-1 scrollbar-thin scrollbar-thumb-white/5">
+                                  {selectedParentCategory.subcategories && selectedParentCategory.subcategories.length > 0 ? (
+                                    selectedParentCategory.subcategories.map((sub: any) => (
+                                      <div
+                                        key={sub.id}
+                                        onClick={() => {
+                                          if (categoryNavPath.length < 8) {
+                                            setCategoryNavPath(prev => [...prev, sub.id]);
+                                          }
+                                        }}
+                                        className="flex items-center justify-between p-1.5 bg-white/3 border border-white/5 rounded text-gray-300 hover:text-white cursor-pointer hover:bg-white/10 transition-colors"
+                                      >
+                                        <div className="flex items-center gap-2 truncate">
+                                          <span className="truncate font-medium text-[11px]">{sub.name}</span>
+                                          {sub.subcategories && sub.subcategories.length > 0 && (
+                                            <span className="bg-white/5 text-gray-500 px-1 py-0.5 rounded text-[8px] font-mono shrink-0">
+                                              {sub.subcategories.length} subs
+                                            </span>
+                                          )}
+                                        </div>
+                                        <div className="flex items-center gap-1 shrink-0">
+                                          {categoryNavPath.length < 8 && (
+                                            <ChevronRight className="w-3.5 h-3.5 text-gray-500" />
+                                          )}
+                                          <button
+                                            type="button"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              handleDeleteDraftSubcategory(categoryNavPath, sub.id);
+                                            }}
+                                            className="p-0.5 text-gray-500 hover:text-red-400 rounded hover:bg-white/5 transition-colors cursor-pointer ml-1"
+                                            title="Delete Subcategory"
+                                          >
+                                            <X className="w-3 h-3" />
+                                          </button>
+                                        </div>
+                                      </div>
+                                    ))
+                                  ) : (
+                                    <div className="flex flex-col items-center justify-center h-full text-center p-4 pointer-events-none">
+                                      <p className="text-[10px] text-gray-600 italic">No subcategories yet.</p>
+                                      {categoryNavPath.length > 1 ? (
+                                        <p className="text-[9px] text-gray-600 mt-0.5">Use the form below to add up to 8.</p>
+                                      ) : (
+                                        <p className="text-[9px] text-gray-600 mt-0.5">Use the form below to add unlimited subcategories.</p>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+
+                                {/* Add subcategory form */}
+                                <div className="border-t border-white/5 pt-2 mt-auto">
+                                  {categoryNavPath.length > 1 && subCount >= 8 ? (
+                                    <div className="text-[9px] text-red-400 bg-red-500/10 border border-red-500/20 p-2 rounded text-center font-bold">
+                                      Max 8 subcategories limit reached for nested levels.
+                                    </div>
+                                  ) : categoryNavPath.length >= 8 ? (
+                                    <div className="text-[9px] text-orange-400 bg-orange-500/10 border border-orange-500/20 p-2 rounded text-center font-bold">
+                                      Maximum nesting depth of 8 reached.
+                                    </div>
+                                  ) : (
+                                    <form
+                                      onSubmit={(e) => {
+                                        e.preventDefault();
+                                        if (newSubcategoryInput.trim()) {
+                                          handleAddDraftSubcategory(categoryNavPath, newSubcategoryInput.trim());
+                                          setNewSubcategoryInput('');
+                                        }
+                                      }}
+                                      className="flex gap-1"
+                                    >
+                                      <input
+                                        type="text"
+                                        placeholder="Add subcategory..."
+                                        value={newSubcategoryInput}
+                                        onChange={(e) => setNewSubcategoryInput(e.target.value)}
+                                        className="flex-1 min-w-0 bg-white/5 border border-white/10 rounded px-2 py-1 text-[11px] text-white placeholder:text-gray-600 focus:border-blue-500 outline-none"
+                                      />
+                                      <button
+                                        type="submit"
+                                        className="px-2.5 py-1 bg-blue-600 hover:bg-blue-500 text-white rounded text-[11px] font-bold transition-all cursor-pointer"
+                                      >
+                                        Add
+                                      </button>
+                                    </form>
+                                  )}
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="flex flex-col items-center justify-center h-full text-center p-4">
+                                <p className="text-[10px] text-gray-600 italic">No parent category selected.</p>
+                                <p className="text-[9px] text-gray-600 mt-1">Select one from the left list to manage subcategories.</p>
+                              </div>
+                            )}
+                          </div>
+
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Footer (Only visible if settings are dirty) */}
+                    {isSettingsDirty && (
+                      <div className="flex items-center justify-end gap-2 border-t border-white/5 pt-4 mt-4">
+                        <button
+                          onClick={() => {
+                            setDraftHomePageColumns(homePageColumns);
+                            setDraftCategoriesList(JSON.parse(JSON.stringify(categories)));
+                            setShowSettingsModal(false);
+                          }}
+                          className="px-4 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-semibold text-gray-300 transition-all cursor-pointer"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          onClick={() => {
+                            setHomePageColumns(draftHomePageColumns);
+                            setCategories(draftCategoriesList);
+                            setShowSettingsModal(false);
+                            notify("Preferences and categories updated successfully!");
+                          }}
+                          className={`px-4 py-1.5 rounded-lg text-xs font-bold text-white transition-all cursor-pointer ${
+                            isSettingsVibrating ? 'animate-shake' : ''
+                          } ${
+                            forceSaveButtonRed 
+                              ? 'bg-red-600 hover:bg-red-500 border border-red-500' 
+                              : 'bg-blue-600 hover:bg-blue-500 border border-blue-500'
+                          }`}
+                        >
+                          Save Settings
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
-            </motion.div>
-          </div>
-        )}
+              </motion.div>
+            </div>
+          );
+        })()}
       </AnimatePresence>
 
       {/* Global Confirmation Modal for Batch Deletions or Exclusions */}
