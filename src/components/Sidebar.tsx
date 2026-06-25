@@ -69,10 +69,7 @@ export default function Sidebar({
   const [showAddForm, setShowAddForm] = useState(false);
   const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>(() => {
     return {
-      'cat-3d': true,
-      'cat-plants': true,
-      'cat-surfaces': true,
-      'cat-atlases': true,
+      'cat-megascans': true,
     };
   });
 
@@ -215,7 +212,7 @@ export default function Sidebar({
 
   // Static/Protected categories that cannot be renamed, deleted, or moved
   const isProtected = (id: string) => {
-    return ['cat-all', 'cat-3d', 'cat-plants', 'cat-surfaces', 'cat-atlases', 'cat-favorites'].includes(id);
+    return ['cat-all', 'cat-favorites', 'cat-megascans'].includes(id);
   };
 
   // ---------------------------------------------------------------------------

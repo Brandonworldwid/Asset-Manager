@@ -66,7 +66,12 @@ export default function App() {
   // ---------------------------------------------------------------------------
   const [categories, setCategories] = useState<Category[]>(() => {
     const saved = localStorage.getItem('megascan_categories');
-    return saved ? JSON.parse(saved) : DEFAULT_CATEGORIES;
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      // Filter out unwanted default categories (3D Assets, Plants, Surfaces, Atlases) if they exist
+      return parsed.filter((c: Category) => ['cat-all', 'cat-favorites', 'cat-megascans'].includes(c.id) || c.id.startsWith('cat-custom-'));
+    }
+    return DEFAULT_CATEGORIES;
   });
 
   const [assets, setAssets] = useState<Asset[]>(() => {
