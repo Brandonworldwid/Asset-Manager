@@ -1,0 +1,6 @@
+{
+  "name": "Megascans Asset Organizer",
+  "description": "An interactive asset organizer for managing downloaded Quixel Megascans and other assets, featuring category management, a middle card grid, a detailed metadata slide-out panel, and automated directory scanning.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
