@@ -67,21 +67,33 @@ export default function App() {
   const [categories, setCategories] = useState<Category[]>(() => {
     const saved = localStorage.getItem('megascan_categories');
     if (saved) {
-      const parsed = JSON.parse(saved);
-      // Filter out unwanted default categories (3D Assets, Plants, Surfaces, Atlases) if they exist
-      return parsed.filter((c: Category) => ['cat-all', 'cat-favorites', 'cat-megascans'].includes(c.id) || c.id.startsWith('cat-custom-'));
+      try {
+        const parsed = JSON.parse(saved);
+        // Filter out unwanted default categories (3D Assets, Plants, Surfaces, Atlases) if they exist
+        return parsed.filter((c: Category) => ['cat-all', 'cat-favorites', 'cat-megascans'].includes(c.id) || c.id.startsWith('cat-custom-'));
+      } catch (e) {
+        return DEFAULT_CATEGORIES;
+      }
     }
     return DEFAULT_CATEGORIES;
   });
 
   const [assets, setAssets] = useState<Asset[]>(() => {
     const saved = localStorage.getItem('megascan_assets');
-    return saved ? JSON.parse(saved) : INITIAL_ASSETS;
+    try {
+      return saved ? JSON.parse(saved) : INITIAL_ASSETS;
+    } catch (e) {
+      return INITIAL_ASSETS;
+    }
   });
 
   const [evictedAssetPaths, setEvictedAssetPaths] = useState<string[]>(() => {
     const saved = localStorage.getItem('megascan_evicted_paths');
-    return saved ? JSON.parse(saved) : [];
+    try {
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
   });
 
   const [activeCategoryId, setActiveCategoryId] = useState<string>('cat-all');
@@ -1676,7 +1688,7 @@ export default function App() {
               </p>
               
               <div className="flex flex-col gap-2">
-                 {Array.from(new Set(assets.filter(a => resolutionSelectionAction.assetIds.includes(a.id)).map(a => a.resolution))).sort().map(res => (
+                 {(Array.from(new Set(assets.filter(a => resolutionSelectionAction.assetIds.includes(a.id)).map(a => a.resolution))) as string[]).sort().map(res => (
                    <button
                      key={res}
                      onClick={() => {

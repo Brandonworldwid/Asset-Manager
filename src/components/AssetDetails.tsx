@@ -121,8 +121,6 @@ export default function AssetDetails({
     }
   }, [asset?.id]);
 
-  if (!asset) return null;
-
   const formatSize = (bytes: number): string => {
     if (bytes === 0) return '0 B';
     const k = 1024;
@@ -243,6 +241,8 @@ export default function AssetDetails({
       return true;
     });
   }, [assetFiles, currentSubFolder, explorerSearch]);
+
+  if (!asset) return null;
 
   const handleCompressionAction = async () => {
     if (compressing) return;

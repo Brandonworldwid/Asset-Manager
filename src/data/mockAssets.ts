@@ -1,4 +1,4 @@
-import { Asset, Category } from '../types';
+import { Asset, Category, Subcategory } from '../types';
 
 export const DEFAULT_CATEGORIES: Category[] = [
   { id: 'cat-all', name: 'All Assets', icon: 'FolderArchive' },
