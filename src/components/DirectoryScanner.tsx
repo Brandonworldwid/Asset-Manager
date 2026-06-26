@@ -12,11 +12,160 @@ import {
   Plus,
   Compass,
   FileArchive,
-  Info
+  Info,
+  Image as ImageIcon
 } from 'lucide-react';
 import { Asset, AssetType } from '../types';
 import { VIRTUAL_DOWNLOADS_ASSETS, MEGASCANS_SUBCATEGORIES } from '../data/mockAssets';
 import { mapCategoryPathToIds } from '../utils';
+
+const VIRTUAL_2D_ASSETS: Asset[] = [
+  {
+    id: 'sim-2d-cyberpunk',
+    name: 'Neon Cyberpunk Alleyway',
+    type: '2d',
+    size: 2516582,
+    isZipped: false,
+    resolution: '3840x2160',
+    thumbnailUrl: 'https://images.unsplash.com/photo-1515621061946-eff1c2a352bd?auto=format&fit=crop&w=800&h=600&q=80',
+    tags: ['neon', 'cyberpunk', 'alley', 'urban', 'concept-art', 'night', 'futuristic'],
+    categories: ['cat-megascans'],
+    scannedPath: '/Local/Scanned2D/neon_cyberpunk_alleyway.png',
+    dateAdded: new Date().toISOString(),
+    description: 'High resolution 2D concept art of a neon-lit cyberpunk city backalley.',
+    colors: ['#0f051d', '#d11141', '#00b159', '#ffc425', '#3498db'],
+    orientation: 'landscape',
+    aspectRatio: '16:9',
+    width: 3840,
+    height: 2160,
+    textures: [
+      {
+        name: 'neon_cyberpunk_alleyway.png',
+        type: '2D Source File',
+        resolution: '3840x2160',
+        size: '2.4 MB',
+        rawSize: 2516582
+      }
+    ],
+    moodboards: []
+  },
+  {
+    id: 'sim-2d-slate',
+    name: 'Slate Cliff Face Texture',
+    type: '2d',
+    size: 1887436,
+    isZipped: false,
+    resolution: '4096x4096',
+    thumbnailUrl: 'https://images.unsplash.com/photo-1504198453319-5ce911bafcde?auto=format&fit=crop&w=600&h=600&q=80',
+    tags: ['slate', 'cliff', 'rock', 'texture', 'stone', 'nature', 'albedo'],
+    categories: ['cat-megascans'],
+    scannedPath: '/Local/Scanned2D/slate_cliff_face_albedo.jpg',
+    dateAdded: new Date().toISOString(),
+    description: 'Beautiful tileable slate rock surface image suited for material overlay.',
+    colors: ['#333333', '#555555', '#777777', '#222222', '#444444'],
+    orientation: 'square',
+    aspectRatio: '1:1',
+    width: 4096,
+    height: 4096,
+    textures: [
+      {
+        name: 'slate_cliff_face_albedo.jpg',
+        type: '2D Source File',
+        resolution: '4096x4096',
+        size: '1.8 MB',
+        rawSize: 1887436
+      }
+    ],
+    moodboards: []
+  },
+  {
+    id: 'sim-2d-forest',
+    name: 'Emerald Forest Watercolor Concept',
+    type: '2d',
+    size: 967680,
+    isZipped: false,
+    resolution: '2048x3072',
+    thumbnailUrl: 'https://images.unsplash.com/photo-1448375240586-882707db888b?auto=format&fit=crop&w=600&h=900&q=80',
+    tags: ['forest', 'emerald', 'watercolor', 'painting', 'nature', 'landscape', 'concept-art'],
+    categories: ['cat-megascans'],
+    scannedPath: '/Local/Scanned2D/emerald_forest_watercolor.webp',
+    dateAdded: new Date().toISOString(),
+    description: 'Watercolor study of an ancient mystical emerald forest, vertical layout.',
+    colors: ['#052c1e', '#134e3a', '#2d7458', '#88bda4', '#d4ece0'],
+    orientation: 'portrait',
+    aspectRatio: '2:3',
+    width: 2048,
+    height: 3072,
+    textures: [
+      {
+        name: 'emerald_forest_watercolor.webp',
+        type: '2D Source File',
+        resolution: '2048x3072',
+        size: '945 KB',
+        rawSize: 967680
+      }
+    ],
+    moodboards: []
+  },
+  {
+    id: 'sim-2d-window',
+    name: 'Gothic Cathedral Window Overlay',
+    type: '2d',
+    size: 4299161,
+    isZipped: false,
+    resolution: '1920x2560',
+    thumbnailUrl: 'https://images.unsplash.com/photo-1548625361-155deee223d0?auto=format&fit=crop&w=600&h=800&q=80',
+    tags: ['gothic', 'cathedral', 'stained-glass', 'window', 'overlay', 'light', 'architecture'],
+    categories: ['cat-megascans'],
+    scannedPath: '/Local/Scanned2D/cathedral_stained_glass_window.png',
+    dateAdded: new Date().toISOString(),
+    description: 'Stained glass window graphic from a classic gothic cathedral, transparent overlay.',
+    colors: ['#110c1a', '#e65100', '#ffd54f', '#1e88e5', '#c62828'],
+    orientation: 'portrait',
+    aspectRatio: '3:4',
+    width: 1920,
+    height: 2560,
+    textures: [
+      {
+        name: 'cathedral_stained_glass_window.png',
+        type: '2D Source File',
+        resolution: '1920x2560',
+        size: '4.1 MB',
+        rawSize: 4299161
+      }
+    ],
+    moodboards: []
+  },
+  {
+    id: 'sim-2d-grunge',
+    name: 'Distressed Concrete Grunge Surface',
+    type: '2d',
+    size: 3355443,
+    isZipped: false,
+    resolution: '3000x2000',
+    thumbnailUrl: 'https://images.unsplash.com/photo-1518531933037-91b2f5f229cc?auto=format&fit=crop&w=800&h=600&q=80',
+    tags: ['concrete', 'grunge', 'distressed', 'surface', 'texture', 'grey', 'urban'],
+    categories: ['cat-megascans'],
+    scannedPath: '/Local/Scanned2D/distressed_concrete_grunge.jpeg',
+    dateAdded: new Date().toISOString(),
+    description: 'A heavily distressed concrete wall texture with organic dark damp stains and scratches.',
+    colors: ['#2b2b2b', '#636363', '#a8a8a8', '#dddddd', '#1a1a1a'],
+    orientation: 'landscape',
+    aspectRatio: '3:2',
+    width: 3000,
+    height: 2000,
+    textures: [
+      {
+        name: 'distressed_concrete_grunge.jpeg',
+        type: '2D Source File',
+        resolution: '3000x2000',
+        size: '3.2 MB',
+        rawSize: 3355443
+      }
+    ],
+    moodboards: []
+  }
+];
 
 interface DirectoryScannerProps {
   libraryAssets: Asset[];
@@ -25,6 +174,7 @@ interface DirectoryScannerProps {
 }
 
 export default function DirectoryScanner({ libraryAssets, evictedAssetPaths = [], onImportAssets }: DirectoryScannerProps) {
+  const [scannerType, setScannerType] = useState<'3d' | '2d'>('3d');
   const [scanPath, setScanPath] = useState('/Users/creative/Downloads/Megascans');
   const [isScanning, setIsScanning] = useState(false);
   const [scanLogs, setScanLogs] = useState<string[]>([]);
@@ -50,6 +200,230 @@ export default function DirectoryScanner({ libraryAssets, evictedAssetPaths = []
         setUsePythonBackend(false);
       });
   }, []);
+
+  // Filter out assets that are already in the library or flagged as evicted
+  const getPendingVirtual2DAssets = () => {
+    return VIRTUAL_2D_ASSETS.filter(
+      (va) => !libraryAssets.some((la) => la.id === va.id) && !evictedAssetPaths.includes(va.scannedPath)
+    );
+  };
+
+  const handleSimulated2DScan = async () => {
+    const logs = [
+      `Initializing standalone image scanner...`,
+      `Targeting directory: ${scanPath}`,
+      `Searching for 2D creative assets (images, textures, paintings, transparent PNGs, alphas)...`,
+    ];
+
+    setScanLogs([...logs]);
+    await delay(600);
+    setScanProgress(15);
+
+    const pending = getPendingVirtual2DAssets();
+
+    if (pending.length === 0) {
+      setScanLogs((prev) => [
+        ...prev,
+        `Scanning folders...`,
+        `No new unimported standalone image assets found in "${scanPath}". All local 2D assets are already synchronized.`,
+      ]);
+      setScanProgress(100);
+      setIsScanning(false);
+      setScanComplete(true);
+      return;
+    }
+
+    for (let i = 0; i < pending.length; i++) {
+      const asset = pending[i];
+      setScanProgress(20 + i * 16);
+      
+      const ext = asset.textures[0]?.name.split('.').pop() || 'png';
+      setScanLogs((prev) => [
+        ...prev,
+        `Found standalone image: ${asset.textures[0]?.name}`,
+        `  -> File format: ${ext.toUpperCase()}`,
+        `  -> Resolution: ${asset.resolution} | Size: ${formatSize(asset.size)}`,
+        `  -> Dominant colors: ${asset.colors?.join(', ')}`,
+        `  -> Registered asset: "${asset.name}" (${asset.id})`,
+      ]);
+
+      setDetectedAssets((prev) => [...prev, asset]);
+      await delay(700);
+    }
+
+    setScanProgress(90);
+    setScanLogs((prev) => [
+      ...prev,
+      `Analyzing completed. Found ${pending.length} high-fidelity 2D image assets.`,
+      `Finalizing registration metadata...`,
+    ]);
+    await delay(500);
+
+    setScanProgress(100);
+    setIsScanning(false);
+    setScanComplete(true);
+  };
+
+  const executeReal2DFolderScan = async (files: FileList) => {
+    setIsScanning(true);
+    setScanComplete(false);
+    setRealScanError(null);
+    setScanLogs([`Starting local image library inspection...`, `Reading files from local directory...`]);
+
+    const fileList = Array.from(files) as any[];
+    const imageExtensions = ['.png', '.jpg', '.jpeg', '.webp', '.bmp', '.gif', '.tiff'];
+    const imageFiles = fileList.filter(f => {
+      const lowerName = f.name.toLowerCase();
+      const isImage = imageExtensions.some(ext => lowerName.endsWith(ext));
+      const isHiddenOrTemp = lowerName.startsWith('.') || lowerName.startsWith('~$');
+      const isCacheOrThumb = lowerName.includes('cache') || lowerName.includes('preview') || lowerName.includes('thumb');
+      return isImage && !isHiddenOrTemp && !isCacheOrThumb;
+    });
+
+    if (imageFiles.length === 0) {
+      setIsScanning(false);
+      setRealScanError('No standalone images found in the selected folder. Ensure the folder has image files (.png, .jpg, .jpeg, .webp, etc.) directly or in subdirectories.');
+      setScanLogs(prev => [...prev, `Scan finished. No matching image file extensions found.`]);
+      return;
+    }
+
+    setScanLogs(prev => [...prev, `Found ${imageFiles.length} standalone images/textures. Resolving dimensions and colors...`]);
+
+    const parsedAssets: Asset[] = [];
+
+    for (let i = 0; i < imageFiles.length; i++) {
+      const file = imageFiles[i];
+      const percent = Math.round((i / imageFiles.length) * 100);
+      setScanProgress(percent);
+
+      const ext = file.name.split('.').pop() || '';
+      const baseName = file.name.substring(0, file.name.length - ext.length - 1);
+      const cleanName = baseName
+        .replace(/[-_]+/g, ' ')
+        .trim()
+        .split(' ')
+        .map((w: string) => w.charAt(0).toUpperCase() + w.slice(1))
+         .join(' ');
+
+      const sizeStr = formatSize(file.size);
+
+      let thumb = '';
+      let width = 1920;
+      let height = 1080;
+      let dominantColors: string[] = ['#1e293b', '#334155', '#475569'];
+
+      try {
+        thumb = await compressImageFile(file);
+        const dims = await new Promise<{ width: number; height: number; colors: string[] }>((resolve) => {
+          const img = new window.Image();
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = 5;
+            canvas.height = 5;
+            const ctx = canvas.getContext('2d');
+            const colors: string[] = [];
+            if (ctx) {
+               ctx.drawImage(img, 0, 0, 5, 5);
+               const data = ctx.getImageData(0, 0, 5, 5).data;
+               const hexSet = new Set<string>();
+               for (let idx = 0; idx < data.length; idx += 4) {
+                 const hex = "#" + ((1 << 24) + (data[idx] << 16) + (data[idx+1] << 8) + data[idx+2]).toString(16).slice(1);
+                 hexSet.add(hex);
+               }
+               colors.push(...Array.from(hexSet).slice(0, 5));
+            }
+            resolve({ width: img.width, height: img.height, colors: colors.length > 0 ? colors : ['#1e293b', '#334155'] });
+          };
+          img.onerror = () => {
+            resolve({ width: 1920, height: 1080, colors: ['#1e293b', '#334155'] });
+          };
+          img.src = URL.createObjectURL(file);
+        });
+        width = dims.width;
+        height = dims.height;
+        dominantColors = dims.colors;
+      } catch (e) {
+        console.error('Error resolving image details client-side:', e);
+      }
+
+      let orientation: 'landscape' | 'portrait' | 'square' = 'landscape';
+      let aspectRatio = '16:9';
+      if (width === height) {
+        orientation = 'square';
+        aspectRatio = '1:1';
+      } else if (width > height) {
+        orientation = 'landscape';
+        const ratio = width / height;
+        if (Math.abs(ratio - 1.777) < 0.1) aspectRatio = '16:9';
+        else if (Math.abs(ratio - 1.333) < 0.1) aspectRatio = '4:3';
+        else if (Math.abs(ratio - 1.5) < 0.1) aspectRatio = '3:2';
+        else aspectRatio = `${width}:${height}`;
+      } else {
+        orientation = 'portrait';
+        const ratio = height / width;
+        if (Math.abs(ratio - 1.777) < 0.1) aspectRatio = '9:16';
+        else if (Math.abs(ratio - 1.333) < 0.1) aspectRatio = '3:4';
+        else if (Math.abs(ratio - 1.5) < 0.1) aspectRatio = '2:3';
+        else aspectRatio = `${width}:${height}`;
+      }
+
+      const assetId = `2d-local-${Math.random().toString(36).substring(2, 8)}`;
+
+      const item: Asset = {
+        id: assetId,
+        name: cleanName,
+        type: '2d',
+        size: file.size,
+        isZipped: false,
+        resolution: `${width}x${height}`,
+        thumbnailUrl: thumb || 'https://images.unsplash.com/photo-1504198453319-5ce911bafcde?auto=format&fit=crop&w=400&h=400&q=80',
+        tags: [ext.toLowerCase(), 'standalone', 'local-import', ...cleanName.toLowerCase().split(' ')].filter(t => t.length > 1),
+        categories: ['cat-megascans'],
+        scannedPath: `/Local/Scanned2D/${file.name}`,
+        dateAdded: new Date().toISOString(),
+        description: `Local 2D image scanned from browser: ${file.name}. Format: ${ext.toUpperCase()}, size: ${sizeStr}.`,
+        colors: dominantColors,
+        orientation,
+        aspectRatio,
+        width,
+        height,
+        textures: [
+          {
+            name: file.name,
+            type: '2D Source File',
+            resolution: `${width}x${height}`,
+            size: sizeStr,
+            rawSize: file.size
+          }
+        ],
+        moodboards: []
+      };
+
+      parsedAssets.push(item);
+
+      if (i % 5 === 0 || i === imageFiles.length - 1) {
+        setScanLogs(prev => [...prev, `Processed ${i + 1}/${imageFiles.length} images: ${cleanName} (${ext.toUpperCase()})`]);
+      }
+    }
+
+    const filteredParsed = parsedAssets.filter(
+      (pa) => !evictedAssetPaths.includes(pa.scannedPath)
+    );
+
+    setIsScanning(false);
+    setScanProgress(100);
+    if (filteredParsed.length === 0) {
+      setRealScanError('No new 2D images found. All identified image files have been previously marked or processed.');
+    } else {
+      setDetectedAssets(filteredParsed);
+      setScanComplete(true);
+      setScanLogs(prev => [
+        ...prev,
+        `2D Scan completed successfully!`,
+        `Discovered ${filteredParsed.length} standalone image assets ready for import.`,
+      ]);
+    }
+  };
 
   // Filter out assets that are already in the library or flagged as evicted
   const getPendingVirtualAssets = () => {
@@ -127,11 +501,11 @@ export default function DirectoryScanner({ libraryAssets, evictedAssetPaths = []
 
     if (usePythonBackend) {
       try {
-        setScanLogs([`[INFO] Directing scan to local Python API: http://127.0.0.1:8000/api/scan`, `[INFO] Targeting path: ${scanPath}`]);
+        setScanLogs([`[INFO] Directing scan to local Python API: http://127.0.0.1:8000/api/scan`, `[INFO] Targeting path: ${scanPath}`, `[INFO] Scanner mode: ${scannerType.toUpperCase()}`]);
         const response = await fetch('http://127.0.0.1:8000/api/scan', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ path: scanPath })
+          body: JSON.stringify({ path: scanPath, scanner_type: scannerType })
         });
         
         if (!response.ok) {
@@ -170,7 +544,13 @@ export default function DirectoryScanner({ libraryAssets, evictedAssetPaths = []
                   ...a,
                   categories: mapCategoryPathToIds(a.categoryPaths || [])
                 }));
-                setDetectedAssets(mappedAssets);
+                // Filter to new assets of the active type only
+                const newOnly = mappedAssets.filter(
+                  (ma: any) => (scannerType === '2d' ? ma.type === '2d' : ma.type !== '2d') &&
+                               !libraryAssets.some((la) => la.id === ma.id) &&
+                               !evictedAssetPaths.includes(ma.scannedPath)
+                );
+                setDetectedAssets(newOnly);
               }
             }
           } catch (pollErr: any) {
@@ -183,9 +563,17 @@ export default function DirectoryScanner({ libraryAssets, evictedAssetPaths = []
       }
     } else {
       if (browserFiles && browserFiles.length > 0) {
-        await executeRealFolderScan(browserFiles);
+        if (scannerType === '2d') {
+          await executeReal2DFolderScan(browserFiles);
+        } else {
+          await executeRealFolderScan(browserFiles);
+        }
       } else {
-        await handleSimulatedScan();
+        if (scannerType === '2d') {
+          await handleSimulated2DScan();
+        } else {
+          await handleSimulatedScan();
+        }
       }
     }
   };
@@ -207,7 +595,7 @@ export default function DirectoryScanner({ libraryAssets, evictedAssetPaths = []
     const firstFile = files[0];
     if (firstFile) {
       const parts = firstFile.webkitRelativePath.split('/');
-      const rootFolder = parts[0] || 'Megascans';
+      const rootFolder = parts[0] || (scannerType === '2d' ? '2D_Assets' : 'Megascans');
       setScanPath(`/Users/user/Downloads/${rootFolder}`);
     }
 
@@ -673,7 +1061,7 @@ export default function DirectoryScanner({ libraryAssets, evictedAssetPaths = []
     });
   };
 
-  const pendingVirtual = getPendingVirtualAssets();
+  const pendingVirtual = scannerType === '2d' ? getPendingVirtual2DAssets() : getPendingVirtualAssets();
 
   return (
     <div className="bg-[#111111] border border-white/5 rounded p-4" id="directory-scanner-card">
@@ -684,7 +1072,7 @@ export default function DirectoryScanner({ libraryAssets, evictedAssetPaths = []
           </div>
           <div>
             <h2 className="font-sans font-bold text-sm text-white leading-none">Asset Auto-Importer</h2>
-            <p className="text-gray-500 text-[11px] mt-0.5">Scan a directory to automatically find and index downloaded Megascans.</p>
+            <p className="text-gray-500 text-[11px] mt-0.5">Scan a directory to automatically find and index local 3D and 2D creative assets.</p>
           </div>
         </div>
          <div className="flex gap-2">
@@ -698,7 +1086,7 @@ export default function DirectoryScanner({ libraryAssets, evictedAssetPaths = []
                   const selected = await winTauri.dialog.open({
                     directory: true,
                     multiple: false,
-                    title: "Select Megascans Folder"
+                    title: scannerType === '2d' ? "Select 2D Assets Folder" : "Select Megascans Folder"
                   });
                   if (selected && typeof selected === 'string') {
                     setScanPath(selected);
@@ -732,6 +1120,50 @@ export default function DirectoryScanner({ libraryAssets, evictedAssetPaths = []
         </div>
       </div>
 
+      {/* 3D vs 2D Segmented Tab Controls */}
+      <div className="flex border-b border-white/5 mb-4" id="scanner-type-tabs">
+        <button
+          type="button"
+          onClick={() => {
+            setScannerType('3d');
+            setScanPath('/Users/creative/Downloads/Megascans');
+            setDetectedAssets([]);
+            setScanComplete(false);
+            setScanLogs([]);
+            setRealScanError(null);
+          }}
+          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold border-b-2 transition-all cursor-pointer ${
+            scannerType === '3d'
+              ? 'border-blue-500 text-white bg-white/5 font-extrabold'
+              : 'border-transparent text-gray-500 hover:text-gray-300'
+          }`}
+          id="scanner-mode-3d-tab"
+        >
+          <FolderSearch className="w-3.5 h-3.5 text-blue-400" />
+          <span>3D MEGASANS SCANNER</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setScannerType('2d');
+            setScanPath('/Users/creative/Downloads/2D_Assets');
+            setDetectedAssets([]);
+            setScanComplete(false);
+            setScanLogs([]);
+            setRealScanError(null);
+          }}
+          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold border-b-2 transition-all cursor-pointer ${
+            scannerType === '2d'
+              ? 'border-blue-500 text-white bg-white/5 font-extrabold'
+              : 'border-transparent text-gray-500 hover:text-gray-300'
+          }`}
+          id="scanner-mode-2d-tab"
+        >
+          <ImageIcon className="w-3.5 h-3.5 text-blue-400" />
+          <span>2D IMAGE SCANNER</span>
+        </button>
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4" id="scanner-main-layout">
         {/* Left Column: Path and Virtual Downloads representation */}
         <div className="lg:col-span-7 space-y-3" id="scanner-control-column">
@@ -751,7 +1183,7 @@ export default function DirectoryScanner({ libraryAssets, evictedAssetPaths = []
               <button
                 onClick={handleScan}
                 disabled={isScanning}
-                className="flex items-center gap-1 px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded text-xs transition-colors disabled:opacity-50"
+                className="flex items-center gap-1 px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded text-xs transition-colors disabled:opacity-50 cursor-pointer"
                 id="start-scan-btn"
               >
                 {isScanning ? (
@@ -767,7 +1199,9 @@ export default function DirectoryScanner({ libraryAssets, evictedAssetPaths = []
           {/* Virtual Downloads Pending Box */}
           <div className="bg-black/35 border border-white/5 rounded p-3 space-y-2.5" id="virtual-downloads-box">
             <div className="flex items-center justify-between">
-              <span className="text-[9px] font-bold font-mono uppercase text-gray-500">Virtual Download Cache</span>
+              <span className="text-[9px] font-bold font-mono uppercase text-gray-500">
+                {scannerType === '2d' ? 'Virtual 2D Cache' : 'Virtual Download Cache'}
+              </span>
               <span className="px-1.5 py-0.5 bg-blue-600/10 text-blue-400 border border-blue-500/10 text-[9px] font-mono rounded">
                 {pendingVirtual.length} Unimported
               </span>
@@ -779,7 +1213,7 @@ export default function DirectoryScanner({ libraryAssets, evictedAssetPaths = []
                   <div key={asset.id} className="py-2 flex items-center justify-between text-xs">
                     <div className="flex items-center gap-2">
                       <div className="w-7 h-7 rounded bg-[#0F0F0F] border border-white/5 flex items-center justify-center text-gray-500 overflow-hidden shrink-0">
-                        <img src={asset.thumbnailUrl} alt="" className="w-full h-full object-cover grayscale opacity-55" />
+                        <img src={asset.thumbnailUrl} alt="" className="w-full h-full object-cover grayscale opacity-55" referrerPolicy="no-referrer" />
                       </div>
                       <div>
                         <div className="font-semibold text-gray-300 text-xs leading-none">{asset.name}</div>
@@ -787,7 +1221,7 @@ export default function DirectoryScanner({ libraryAssets, evictedAssetPaths = []
                       </div>
                     </div>
                     <span className="font-mono text-[9px] px-1 py-0.5 bg-white/5 border border-white/5 text-gray-400 rounded shrink-0">
-                      {asset.type.toUpperCase()}
+                      {asset.textures[0]?.name.split('.').pop()?.toUpperCase() || asset.type.toUpperCase()}
                     </span>
                   </div>
                 ))}
@@ -798,20 +1232,36 @@ export default function DirectoryScanner({ libraryAssets, evictedAssetPaths = []
               </div>
             )}
             
-            <div className="flex flex-col gap-1 text-[9px] text-gray-400 bg-[#161616]/40 p-2.5 rounded border border-white/5">
-              <div className="flex items-center gap-1.5 font-semibold text-gray-300">
-                <Info className="w-3.5 h-3.5 text-blue-400 shrink-0" />
-                <span>Megascans Folder Structure Guide</span>
+            {scannerType === '2d' ? (
+              <div className="flex flex-col gap-1 text-[9px] text-gray-400 bg-[#161616]/40 p-2.5 rounded border border-white/5">
+                <div className="flex items-center gap-1.5 font-semibold text-gray-300">
+                  <Info className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+                  <span>2D Image Scanner Guide</span>
+                </div>
+                <p className="mt-1 text-gray-500">
+                  Choose a directory containing standard creative image assets. The scanner will automatically scan and recursively parse standalone 2D images, extracting:
+                </p>
+                <ul className="list-disc pl-3.5 mt-1 space-y-1 text-[9px] text-gray-500 font-mono">
+                  <li>Metadata details: <span className="text-gray-350 font-semibold">File size, dimensions, resolution, and format type (PNG, JPG, WebP)</span></li>
+                  <li>Aesthetic details: <span className="text-gray-350 font-semibold">Aspect ratio, orientation, and a 5-color dominant palette</span></li>
+                </ul>
               </div>
-              <p className="mt-1 text-gray-500">
-                Choose the main/parent folder where your individual Megascan assets are stored. Inside that chosen directory, each subdirectory represents a single asset containing:
-              </p>
-              <ul className="list-disc pl-3.5 mt-1 space-y-1 text-[9px] text-gray-500 font-mono">
-                <li>A <span className="text-gray-350 font-semibold">JSON metadata file</span> (e.g., <code className="text-blue-300">asset_name.json</code>)</li>
-                <li>Loose texture layers (<span className="text-gray-350 font-semibold">_Albedo</span>, <span className="text-gray-350 font-semibold">_Normal</span>, etc.) and meshes (<span className="text-gray-350 font-semibold">.fbx/.obj</span>)</li>
-                <li>Previews/thumbnails (under <span className="text-gray-350 font-semibold">Preview/</span>, <span className="text-gray-350 font-semibold">Thumbs/</span>, or root)</li>
-              </ul>
-            </div>
+            ) : (
+              <div className="flex flex-col gap-1 text-[9px] text-gray-400 bg-[#161616]/40 p-2.5 rounded border border-white/5">
+                <div className="flex items-center gap-1.5 font-semibold text-gray-300">
+                  <Info className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+                  <span>Megascans Folder Structure Guide</span>
+                </div>
+                <p className="mt-1 text-gray-500">
+                  Choose the main/parent folder where your individual Megascan assets are stored. Inside that chosen directory, each subdirectory represents a single asset containing:
+                </p>
+                <ul className="list-disc pl-3.5 mt-1 space-y-1 text-[9px] text-gray-500 font-mono">
+                  <li>A <span className="text-gray-350 font-semibold">JSON metadata file</span> (e.g., <code className="text-blue-300">asset_name.json</code>)</li>
+                  <li>Loose texture layers (<span className="text-gray-350 font-semibold">_Albedo</span>, <span className="text-gray-350 font-semibold">_Normal</span>, etc.) and meshes (<span className="text-gray-350 font-semibold">.fbx/.obj</span>)</li>
+                  <li>Previews/thumbnails (under <span className="text-gray-350 font-semibold">Preview/</span>, <span className="text-gray-350 font-semibold">Thumbs/</span>, or root)</li>
+                </ul>
+              </div>
+            )}
           </div>
         </div>
 

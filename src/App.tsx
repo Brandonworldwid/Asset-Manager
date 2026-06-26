@@ -98,6 +98,7 @@ export default function App() {
   });
 
   const [activeCategoryId, setActiveCategoryId] = useState<string>('cat-all');
+  const [activeGroupId, setActiveGroupId] = useState<string | null>(null);
   const [selectedAssetId, setSelectedAssetId] = useState<string | null>(null);
   const [selectedAssetIds, setSelectedAssetIds] = useState<string[]>([]);
   const [showScanner, setShowScanner] = useState<boolean>(false);
@@ -469,6 +470,38 @@ export default function App() {
     notify("Asset removed from manager and flagged from re-import.");
   };
 
+  const handleGroup2DAssets = () => {
+    const selected = assets.filter(a => selectedAssetIds.includes(a.id));
+    if (selected.length < 2) return;
+    
+    const groupId = `2d-group-${Math.random().toString(36).substring(2, 8)}`;
+    const newGroupAsset: Asset = {
+      id: groupId,
+      name: `Image Group (${selected.length} items)`,
+      type: '2d',
+      size: selected.reduce((sum, a) => sum + a.size, 0),
+      isZipped: false,
+      resolution: selected[0].resolution,
+      thumbnailUrl: selected[0].thumbnailUrl,
+      tags: ['group', '2d-group'],
+      categories: selected[0].categories,
+      scannedPath: selected[0].scannedPath,
+      dateAdded: new Date().toISOString(),
+      textures: selected[0].textures,
+      colors: selected[0].colors,
+      isGroup: true,
+    };
+
+    setAssets(prev => {
+      const updated = prev.map(a => selectedAssetIds.includes(a.id) ? { ...a, groupId } : a);
+      return [newGroupAsset, ...updated];
+    });
+
+    setSelectedAssetIds([]);
+    setSelectedAssetId(null);
+    notify(`Grouped ${selected.length} images into a single asset card.`);
+  };
+
   const handleMoveAssetPath = (id: string, newPath: string) => {
     setAssets((prev) =>
       prev.map((asset) => (asset.id === id ? { ...asset, scannedPath: newPath } : asset))
@@ -675,7 +708,7 @@ export default function App() {
 
   const handleUpdateAssetMoodboards = async (assetId: string, nextMoodboards: string[]) => {
     try {
-      const res = await fetch(`/api/assets/${assetId}/moodboards`, {
+      const res = await fetch(`http://127.0.0.1:8000/api/assets/${assetId}/moodboards`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ moodboards: nextMoodboards }),
@@ -746,6 +779,13 @@ export default function App() {
   const activeCategoryName = activeCategory ? activeCategory.name : 'All Assets';
 
   const displayedAssets = assets.filter((asset) => {
+    // 0. Filter by group visibility
+    if (activeGroupId) {
+      if (asset.groupId !== activeGroupId) return false;
+    } else {
+      if (asset.groupId) return false;
+    }
+
     // 1. Differentiate library modes (3D vs 2D)
     if (libraryMode === '2d') {
       if (asset.type !== '2d') return false;
@@ -917,6 +957,25 @@ export default function App() {
           </AnimatePresence>
 
           {/* Card Grid view */}
+          {activeGroupId && (
+            <div className="px-5 py-3 border-b border-white/5 bg-[#121214] flex items-center gap-3">
+              <button
+                onClick={() => {
+                  setActiveGroupId(null);
+                  setSelectedAssetIds([]);
+                  setSelectedAssetId(null);
+                }}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white rounded text-xs font-semibold transition-colors"
+              >
+                <ChevronLeft className="w-4 h-4" />
+                <span>Back to Library</span>
+              </button>
+              <div className="text-sm font-bold text-white flex items-center gap-2">
+                <Layers className="w-4 h-4 text-indigo-400" />
+                <span>Viewing Image Group</span>
+              </div>
+            </div>
+          )}
           <AssetGrid
             assets={displayedAssets}
             selectedAssetId={selectedAssetId}
@@ -928,6 +987,16 @@ export default function App() {
             onToggleFavorite={handleToggleFavorite}
             columns={homePageColumns}
             isLoading={isLoading}
+            onDoubleClickAsset={(id) => {
+              const asset = assets.find(a => a.id === id);
+              if (asset?.isGroup) {
+                setActiveGroupId(asset.id);
+                setSelectedAssetIds([]);
+                setSelectedAssetId(null);
+              } else {
+                handleToggleZip(id);
+              }
+            }}
           />
         </main>
 
@@ -1010,6 +1079,17 @@ export default function App() {
                 <Star className="w-3.5 h-3.5" />
                 <span>Favorites</span>
               </button>
+
+              {selectedAssetIds.length > 1 && assets.filter(a => selectedAssetIds.includes(a.id)).every(a => a.type === '2d') && (
+                <button
+                  onClick={handleGroup2DAssets}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-500/10 hover:bg-indigo-600 border border-indigo-500/20 hover:border-indigo-500 text-indigo-400 hover:text-white transition-all font-semibold font-sans cursor-pointer"
+                  title="Group selected 2D images"
+                >
+                  <Layers className="w-3.5 h-3.5" />
+                  <span>Group Images</span>
+                </button>
+              )}
             </div>
 
             <span className="text-white/10">|</span>

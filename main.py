@@ -144,6 +144,7 @@ scan_state = {
 
 class ScanRequest(BaseModel):
     path: str
+    scanner_type: Optional[str] = "3d"
 
 class SettingsModel(BaseModel):
     app_data_path: str
@@ -439,7 +440,7 @@ def make_2d_thumbnail(src_path: str, asset_id: str, cache_path: str) -> str:
 # ---------------------------------------------------------------------------
 # Background Scanning Worker
 # ---------------------------------------------------------------------------
-def scan_directory_worker(root_path: str):
+def scan_directory_worker(root_path: str, scanner_type: str = "3d"):
     global scan_state
     scan_state["is_scanning"] = True
     scan_state["progress"] = 5
@@ -472,16 +473,19 @@ def scan_directory_worker(root_path: str):
                 raise Exception(f"The path '{root_path}' does not exist or is not a directory.")
             # Determine if 2D or 3D
             is_2d = False
-            path_abs = os.path.abspath(root_path)
-            for p2d in settings.get("library_2d_paths", []):
-                p2d_abs = os.path.abspath(p2d)
-                if path_abs == p2d_abs or path_abs.startswith(p2d_abs + os.sep):
-                    is_2d = True
-                    break
-            if not is_2d:
-                low_name = os.path.basename(path_abs).lower()
-                if any(k in low_name for k in ["2d", "texture", "paint", "alpha", "art", "overlay", "decal", "concept"]):
-                    is_2d = True
+            if scanner_type == "2d":
+                is_2d = True
+            else:
+                path_abs = os.path.abspath(root_path)
+                for p2d in settings.get("library_2d_paths", []):
+                    p2d_abs = os.path.abspath(p2d)
+                    if path_abs == p2d_abs or path_abs.startswith(p2d_abs + os.sep):
+                        is_2d = True
+                        break
+                if not is_2d:
+                    low_name = os.path.basename(path_abs).lower()
+                    if any(k in low_name for k in ["2d", "texture", "paint", "alpha", "art", "overlay", "decal", "concept"]):
+                        is_2d = True
             paths_to_scan.append((root_path, is_2d))
 
         if not paths_to_scan:
@@ -836,7 +840,7 @@ def trigger_scan(req: ScanRequest, background_tasks: BackgroundTasks):
     if scan_state["is_scanning"]:
         raise HTTPException(status_code=400, detail="A scan is already in progress.")
     
-    background_tasks.add_task(scan_directory_worker, req.path)
+    background_tasks.add_task(scan_directory_worker, req.path, req.scanner_type)
     return {"message": "Scanning process initiated in background thread.", "target_path": req.path}
 
 @app.get("/api/assets")

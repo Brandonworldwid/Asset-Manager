@@ -39,6 +39,9 @@ export interface Asset {
   width?: number;
   height?: number;
   moodboards?: string[];
+  isGroup?: boolean;
+  groupId?: string;
+  groupedAssets?: Asset[];
 }
 
 export interface Subcategory {

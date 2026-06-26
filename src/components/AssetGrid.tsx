@@ -38,6 +38,7 @@ interface AssetGridProps {
   onToggleFavorite: (id: string) => void;
   columns?: number;
   isLoading?: boolean;
+  onDoubleClickAsset?: (id: string) => void;
 }
 
 type SortField = 'name' | 'size' | 'date' | 'type';
@@ -99,6 +100,7 @@ export default function AssetGrid({
   onToggleFavorite,
   columns = 4,
   isLoading = false,
+  onDoubleClickAsset,
 }: AssetGridProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedType, setSelectedType] = useState<string>('all');
@@ -449,7 +451,14 @@ export default function AssetGrid({
                     const targetId = alreadySelected ? alreadySelected.id : asset.id;
                     onToggleSelectAsset(targetId, isCtrl);
                   }}
-                  onDoubleClick={() => onToggleZip(selectedAssetId && group.allAssets.some(a => a.id === selectedAssetId) ? (selectedAssetId as string) : asset.id)}
+                  onDoubleClick={() => {
+                    const targetId = selectedAssetId && group.allAssets.some(a => a.id === selectedAssetId) ? (selectedAssetId as string) : asset.id;
+                    if (onDoubleClickAsset) {
+                      onDoubleClickAsset(targetId);
+                    } else {
+                      onToggleZip(targetId);
+                    }
+                  }}
                   whileHover={{ y: -2, transition: { duration: 0.12 } }}
                   className={`group relative flex flex-col bg-[#161616] rounded-xl border overflow-hidden cursor-pointer select-none transition-all ${
                     isMultiSelected
