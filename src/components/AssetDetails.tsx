@@ -570,7 +570,7 @@ export default function AssetDetails({
           id="details-thumbnail-frame"
         >
           <img
-            src={draftThumbnailUrl || asset.thumbnailUrl}
+            src={draftThumbnailUrl || asset.originalUrl || asset.thumbnailUrl}
             alt={draftName}
             referrerPolicy="no-referrer"
             className="w-full h-full object-cover transition-all duration-300 group-hover:blur-md group-hover:scale-105"

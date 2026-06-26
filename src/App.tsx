@@ -33,10 +33,12 @@ import {
   ChevronRight,
   ChevronLeft,
   ChevronDown,
-  Library
+  Library,
+  RefreshCw
 } from 'lucide-react';
 
 import { Asset, Category, getAssetGroupKey } from './types';
+import packageJson from '../package.json';
 import { DEFAULT_CATEGORIES, INITIAL_ASSETS, MEGASCANS_SUBCATEGORIES } from './data/mockAssets';
 import { mapCategoryPathToIds } from './utils';
 import Sidebar from './components/Sidebar';
@@ -141,7 +143,7 @@ export default function App() {
   const [draftCachePath, setDraftCachePath] = useState<string>('');
 
   // Categories editing in Settings states
-  const [activeSettingsTab, setActiveSettingsTab] = useState<'personalization' | 'categories' | 'bridge' | 'storage'>('personalization');
+  const [activeSettingsTab, setActiveSettingsTab] = useState<'personalization' | 'categories' | 'bridge' | 'storage' | 'update'>('personalization');
   const [draftCategoriesList, setDraftCategoriesList] = useState<Category[]>([]);
   const [categoryNavPath, setCategoryNavPath] = useState<string[]>([]);
   const [newSubcategoryInput, setNewSubcategoryInput] = useState<string>('');
@@ -1590,6 +1592,17 @@ export default function App() {
                         <span className="text-red-500 font-bold text-[10px] leading-none select-none">*</span>
                       )}
                     </button>
+                    <button
+                      onClick={() => setActiveSettingsTab('update')}
+                      className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs text-left transition-colors cursor-pointer ${
+                        activeSettingsTab === 'update'
+                          ? 'bg-blue-600/10 border border-blue-500/20 text-blue-400 font-bold'
+                          : 'border border-transparent text-gray-400 hover:text-white hover:bg-white/5'
+                      }`}
+                    >
+                      <RefreshCw className="w-3.5 h-3.5" />
+                      <span className="flex-1 truncate">Updates</span>
+                    </button>
                   </div>
 
                   {/* Right Content Pane */}
@@ -1985,6 +1998,26 @@ export default function App() {
                             />
                             <p className="text-[10px] text-gray-500 italic">Current path on server: {cachePath || './.megascan_cache'}</p>
                           </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {activeSettingsTab === 'update' && (
+                      <div className="flex flex-col h-full gap-4">
+                        <div className="mb-2">
+                           <h4 className="text-xs font-bold text-white uppercase tracking-wider mb-2">Check for Updates</h4>
+                           <p className="text-gray-400 text-[11px] leading-relaxed">
+                             Check for the latest software updates.
+                           </p>
+                        </div>
+                        <div className="flex-1 flex flex-col items-start gap-3">
+                          <button
+                            type="button"
+                            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded text-xs transition-colors cursor-pointer"
+                          >
+                            Check for update
+                          </button>
+                          <span className="text-gray-500 text-[10px] font-mono">Current Version: {packageJson.version}</span>
                         </div>
                       </div>
                     )}

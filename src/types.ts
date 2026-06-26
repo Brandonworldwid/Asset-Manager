@@ -22,6 +22,7 @@ export interface Asset {
   isZipped: boolean;
   resolution: string;
   thumbnailUrl: string;
+  originalUrl?: string;
   tags: string[];
   categories: string[]; // Category IDs
   scannedPath: string; // Directory where it was found

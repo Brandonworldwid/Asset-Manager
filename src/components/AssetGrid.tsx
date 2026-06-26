@@ -23,9 +23,11 @@ import {
   Globe,
   Calendar,
   Folder,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Maximize2
 } from 'lucide-react';
 import { Asset, AssetType, getAssetGroupKey, getAssetGroupName } from '../types';
+import ExplorerModal from './ExplorerModal';
 
 interface AssetGridProps {
   assets: Asset[];
@@ -111,6 +113,8 @@ export default function AssetGrid({
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
   const [quickViewAsset, setQuickViewAsset] = useState<Asset | null>(null);
   const [copiedPath, setCopiedPath] = useState(false);
+  const [isQuickViewMaximized, setIsQuickViewMaximized] = useState(false);
+  const [showExplorerModal, setShowExplorerModal] = useState(false);
   const [useTransparencyGrid, setUseTransparencyGrid] = useState(false);
   const [visibleCount, setVisibleCount] = useState(100);
 
@@ -472,7 +476,7 @@ export default function AssetGrid({
                   {/* Top Thumbnail Frame */}
                   <div className="relative aspect-square w-full bg-[#0F0F0F] flex items-center justify-center overflow-hidden border-b border-b-white/5">
                     <img
-                      src={asset.thumbnailUrl}
+                      src={asset.originalUrl || asset.thumbnailUrl}
                       alt={group.groupName}
                       referrerPolicy="no-referrer"
                       className="w-full h-full object-cover group-hover:scale-103 transition-transform duration-300"
@@ -650,7 +654,36 @@ export default function AssetGrid({
           };
 
           return (
-            <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-[120] flex items-center justify-center p-4" id="quickview-overlay" onClick={() => setQuickViewAsset(null)}>
+            <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-[120] flex items-center justify-center p-4" id="quickview-overlay" onClick={() => { setQuickViewAsset(null); setIsQuickViewMaximized(false); }}>
+              {isQuickViewMaximized && (
+                <div className="fixed inset-0 z-[130] flex items-center justify-center bg-[#09090a]" onClick={(e) => e.stopPropagation()}>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setIsQuickViewMaximized(false); }}
+                    className="absolute top-4 right-4 p-3 bg-black/60 hover:bg-black/80 border border-white/10 rounded-full text-gray-400 hover:text-white transition-all shadow-lg z-[140]"
+                    title="Exit Full Screen"
+                  >
+                    <X className="w-6 h-6" />
+                  </button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handlePrevQuickView(); }}
+                    className="absolute left-8 top-1/2 -translate-y-1/2 p-4 bg-black/60 hover:bg-black/80 border border-white/10 rounded-full text-gray-400 hover:text-white transition-all shadow-xl hover:scale-105 active:scale-95 cursor-pointer z-[140]"
+                  >
+                    <ChevronLeft className="w-8 h-8" />
+                  </button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleNextQuickView(); }}
+                    className="absolute right-8 top-1/2 -translate-y-1/2 p-4 bg-black/60 hover:bg-black/80 border border-white/10 rounded-full text-gray-400 hover:text-white transition-all shadow-xl hover:scale-105 active:scale-95 cursor-pointer z-[140]"
+                  >
+                    <ChevronRight className="w-8 h-8" />
+                  </button>
+                  <img
+                    src={freshAsset.originalUrl || freshAsset.thumbnailUrl}
+                    alt={freshAsset.name}
+                    referrerPolicy="no-referrer"
+                    className="w-full h-full object-contain p-8 select-none shadow-2xl"
+                  />
+                </div>
+              )}
               {/* Left Navigation Arrow */}
               <button
                 onClick={(e) => {
@@ -669,7 +702,7 @@ export default function AssetGrid({
                 animate={{ scale: 1, opacity: 1 }}
                 exit={{ scale: 0.95, opacity: 0 }}
                 transition={{ duration: 0.18 }}
-                className="w-full max-w-5xl bg-[#111112] border border-white/10 rounded-2xl shadow-2xl overflow-hidden flex flex-col md:flex-row h-[90vh] md:h-[640px] relative"
+                className={`w-full max-w-5xl bg-[#111112] border border-white/10 rounded-2xl shadow-2xl overflow-hidden flex flex-col md:flex-row h-[90vh] md:h-[640px] relative ${isQuickViewMaximized ? 'hidden' : ''}`}
                 id="quickview-modal-window"
                 onClick={(e) => e.stopPropagation()}
               >
@@ -699,7 +732,7 @@ export default function AssetGrid({
                   <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-black/20" />
 
                   <img
-                    src={freshAsset.thumbnailUrl}
+                    src={freshAsset.originalUrl || freshAsset.thumbnailUrl}
                     alt={freshAsset.name}
                     referrerPolicy="no-referrer"
                     className="max-w-[85%] max-h-[85%] object-contain select-none shadow-2xl rounded-lg"
@@ -718,18 +751,27 @@ export default function AssetGrid({
 
                   {/* Checkerboard Backdrop Toggle for 2D assets */}
                   {freshAsset.type === '2d' && (
-                    <button
-                      onClick={() => setUseTransparencyGrid(!useTransparencyGrid)}
-                      className={`absolute top-4 right-16 px-2.5 py-1 text-[10px] font-bold font-mono rounded-lg border flex items-center gap-1.5 transition-colors cursor-pointer backdrop-blur-sm shadow-md z-30 ${
-                        useTransparencyGrid
-                          ? 'bg-blue-600 border-blue-400 text-white hover:bg-blue-500'
-                          : 'bg-black/75 border-white/10 text-gray-400 hover:text-white'
-                      }`}
-                      title="Toggle checkered background for alpha/transparency channel"
-                    >
-                      <Layers className="w-3.5 h-3.5" />
-                      <span>{useTransparencyGrid ? 'ALPHA ON' : 'ALPHA OFF'}</span>
-                    </button>
+                    <div className="absolute top-4 right-16 flex items-center gap-2 z-30">
+                      <button
+                        onClick={() => setIsQuickViewMaximized(true)}
+                        className="px-2.5 py-1 text-[10px] font-bold font-mono rounded-lg border bg-black/75 border-white/10 text-gray-400 hover:text-white flex items-center gap-1.5 transition-colors cursor-pointer backdrop-blur-sm shadow-md"
+                        title="Maximize Image"
+                      >
+                        <Maximize2 className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={() => setUseTransparencyGrid(!useTransparencyGrid)}
+                        className={`px-2.5 py-1 text-[10px] font-bold font-mono rounded-lg border flex items-center gap-1.5 transition-colors cursor-pointer backdrop-blur-sm shadow-md ${
+                          useTransparencyGrid
+                            ? 'bg-blue-600 border-blue-400 text-white hover:bg-blue-500'
+                            : 'bg-black/75 border-white/10 text-gray-400 hover:text-white'
+                        }`}
+                        title="Toggle checkered background for alpha/transparency channel"
+                      >
+                        <Layers className="w-3.5 h-3.5" />
+                        <span>{useTransparencyGrid ? 'ALPHA ON' : 'ALPHA OFF'}</span>
+                      </button>
+                    </div>
                   )}
 
                   {/* Bottom Actions overlay */}
@@ -869,7 +911,7 @@ export default function AssetGrid({
 
                     {/* Scanned Path Row */}
                     <div className="p-3 bg-black/20 border border-white/5 rounded-xl text-xs space-y-1.5 mb-6">
-                      <div className="flex items-center justify-between">
+                      <div className="flex items-center justify-between mb-1.5">
                         <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider font-mono flex items-center gap-1.5">
                           <Folder className="w-3.5 h-3.5 text-blue-400" />
                           <span>Local Export Folder</span>
@@ -882,10 +924,76 @@ export default function AssetGrid({
                           <span>{copiedPath ? 'COPIED!' : 'COPY'}</span>
                         </button>
                       </div>
-                      <div className="font-mono text-[10px] text-gray-400 bg-black/40 px-2 py-1.5 rounded border border-white/5 select-all overflow-x-auto whitespace-nowrap scrollbar-none">
-                        {freshAsset.scannedPath || 'Not Scanned'}
+                      <div
+                        onClick={() => setShowExplorerModal(true)}
+                        className="group/path cursor-pointer text-[10px] text-blue-400 hover:text-blue-300 break-all leading-normal font-mono font-medium block bg-black/40 hover:bg-black/60 border border-white/5 hover:border-blue-500/30 rounded p-2 transition-all flex items-start gap-2 shadow-inner"
+                        title="Click to open Virtual File Explorer"
+                      >
+                        <FolderOpen className="w-3.5 h-3.5 text-blue-400 group-hover/path:scale-110 shrink-0 transition-transform mt-0.5" />
+                        <div className="space-y-0.5 min-w-0 flex-1">
+                          <span className="block truncate font-bold">{freshAsset.scannedPath || 'Not Scanned'}</span>
+                          <span className="text-[9px] text-gray-500 font-bold tracking-wider uppercase group-hover/path:text-blue-400/80 transition-colors flex items-center gap-1">
+                            Explore local files & directories
+                          </span>
+                        </div>
                       </div>
                     </div>
+
+                    {freshAsset.type === '2d' && (
+                      <div className="mb-6 space-y-2">
+                        <h4 className="text-[10px] font-bold uppercase tracking-widest text-gray-500 font-mono flex items-center gap-2 mb-2">
+                          <Box className="w-3.5 h-3.5 text-blue-400" />
+                          <span>Technical Parameters</span>
+                        </h4>
+                        <div className="bg-[#141414] border border-white/10 rounded-xl p-3.5 space-y-2.5 text-xs font-mono text-gray-300 shadow-inner">
+                          <div className="flex justify-between py-1 border-b border-white/5">
+                            <span className="text-gray-400 font-medium">Asset Type</span>
+                            <span className="text-white font-bold capitalize">{freshAsset.type}</span>
+                          </div>
+                          {freshAsset.width && freshAsset.height && (
+                            <div className="flex justify-between py-1 border-b border-white/5">
+                              <span className="text-gray-400 font-medium">Resolution</span>
+                              <span className="text-white font-bold">{freshAsset.width} × {freshAsset.height} px</span>
+                            </div>
+                          )}
+                          {freshAsset.orientation && (
+                            <div className="flex justify-between py-1 border-b border-white/5">
+                              <span className="text-gray-400 font-medium">Orientation</span>
+                              <span className="text-blue-400 font-bold capitalize">{freshAsset.orientation}</span>
+                            </div>
+                          )}
+                          {freshAsset.aspectRatio && (
+                            <div className="flex justify-between py-1 border-b border-white/5">
+                              <span className="text-gray-400 font-medium">Aspect Ratio</span>
+                              <span className="text-white font-bold">{freshAsset.aspectRatio}</span>
+                            </div>
+                          )}
+                          {freshAsset.colors && freshAsset.colors.length > 0 && (
+                            <div className="py-1.5 border-b border-white/5">
+                              <span className="text-gray-400 font-medium block mb-1.5">Dominant Colors (Click to Copy)</span>
+                              <div className="flex flex-wrap gap-1.5 mt-1 bg-black/35 p-1.5 rounded-lg border border-white/5">
+                                {freshAsset.colors.map((colorHex) => (
+                                  <button
+                                    key={colorHex}
+                                    type="button"
+                                    onClick={() => {
+                                      navigator.clipboard.writeText(colorHex);
+                                    }}
+                                    className="w-6 h-6 rounded-md border border-white/15 cursor-pointer hover:scale-110 hover:border-white/40 active:scale-95 transition-all duration-100 flex items-center justify-center group relative"
+                                    style={{ backgroundColor: colorHex }}
+                                    title={`Copy hex ${colorHex}`}
+                                  >
+                                    <span className="absolute bottom-full mb-1 bg-black text-white text-[8px] font-mono py-0.5 px-1.5 rounded opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-100 z-50">
+                                      {colorHex}
+                                    </span>
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
 
                     {/* Spec details based on Asset Type */}
                     {freshAsset.meshStats && (
@@ -967,6 +1075,14 @@ export default function AssetGrid({
               >
                 <ChevronRight className="w-6 h-6" />
               </button>
+
+              {showExplorerModal && (
+                <ExplorerModal 
+                  asset={freshAsset} 
+                  onClose={() => setShowExplorerModal(false)}
+                  formatSize={formatSize}
+                />
+              )}
             </div>
           );
         })()}
