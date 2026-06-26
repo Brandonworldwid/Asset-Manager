@@ -104,6 +104,18 @@ export default function App() {
   const [showNotification, setShowNotification] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
+  // Advanced 2D, Mode, and Moodboards pipeline states
+  const [libraryMode, setLibraryMode] = useState<'3d' | '2d'>('3d');
+  const [customMoodboards, setCustomMoodboards] = useState<string[]>(() => {
+    const saved = localStorage.getItem('megascan_custom_moodboards');
+    try {
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
+  });
+  const [selectedColorFilter, setSelectedColorFilter] = useState<string | null>(null);
+
   // Settings state
   const [homePageColumns, setHomePageColumns] = useState<number>(() => {
     const saved = localStorage.getItem('megascan_home_page_columns');
@@ -165,6 +177,11 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('megascan_home_page_columns', homePageColumns.toString());
   }, [homePageColumns]);
+
+  // Save customMoodboards to localStorage
+  useEffect(() => {
+    localStorage.setItem('megascan_custom_moodboards', JSON.stringify(customMoodboards));
+  }, [customMoodboards]);
   
   // Batch rescan state
   const [isBatchScanning, setIsBatchScanning] = useState<boolean>(false);
@@ -646,14 +663,118 @@ export default function App() {
   };
 
   // ---------------------------------------------------------------------------
+  // Advanced 2D, Colors & Moodboards pipeline handlers
+  // ---------------------------------------------------------------------------
+  const handleCreateMoodboard = (name: string) => {
+    const trimmed = name.trim();
+    if (trimmed && !customMoodboards.includes(trimmed)) {
+      setCustomMoodboards((prev) => [...prev, trimmed]);
+      notify(`Moodboard "${trimmed}" created!`);
+    }
+  };
+
+  const handleUpdateAssetMoodboards = async (assetId: string, nextMoodboards: string[]) => {
+    try {
+      const res = await fetch(`/api/assets/${assetId}/moodboards`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ moodboards: nextMoodboards }),
+      });
+      if (res.ok) {
+        setAssets((prev) => prev.map((a) => (a.id === assetId ? { ...a, moodboards: nextMoodboards } : a)));
+      } else {
+        setAssets((prev) => prev.map((a) => (a.id === assetId ? { ...a, moodboards: nextMoodboards } : a)));
+      }
+    } catch (err) {
+      console.error("Error updating asset moodboards:", err);
+      setAssets((prev) => prev.map((a) => (a.id === assetId ? { ...a, moodboards: nextMoodboards } : a)));
+    }
+  };
+
+  const handleDeleteMoodboard = async (name: string) => {
+    setCustomMoodboards((prev) => prev.filter((m) => m !== name));
+    
+    // De-assign moodboard from all assets
+    const affectedAssets = assets.filter((a) => a.moodboards && a.moodboards.includes(name));
+    for (const item of affectedAssets) {
+      const nextMbs = (item.moodboards || []).filter((m) => m !== name);
+      await handleUpdateAssetMoodboards(item.id, nextMbs);
+    }
+    
+    notify(`Moodboard "${name}" deleted.`);
+  };
+
+  // Color matching utilities
+  const hexToRgb = (hex: string) => {
+    const cleanHex = hex.replace('#', '');
+    const r = parseInt(cleanHex.substring(0, 2), 16);
+    const g = parseInt(cleanHex.substring(2, 4), 16);
+    const b = parseInt(cleanHex.substring(4, 6), 16);
+    return { r, g, b };
+  };
+
+  const colorDistance = (hex1: string, hex2: string) => {
+    const rgb1 = hexToRgb(hex1);
+    const rgb2 = hexToRgb(hex2);
+    const dr = rgb1.r - rgb2.r;
+    const dg = rgb1.g - rgb2.g;
+    const db = rgb1.b - rgb2.b;
+    return Math.sqrt(dr * dr + dg * dg + db * db);
+  };
+
+  const matchesColorFilter = (assetColors: string[] | undefined, filterHex: string | null) => {
+    if (!filterHex) return true;
+    if (!assetColors || assetColors.length === 0) return false;
+    return assetColors.some((color) => colorDistance(color, filterHex) < 95);
+  };
+
+  // Dynamic moodboards calculated list
+  const computedMoodboardsList = React.useMemo(() => {
+    const set = new Set<string>(customMoodboards);
+    assets.forEach((a) => {
+      if (a.moodboards) {
+        a.moodboards.forEach((m) => set.add(m));
+      }
+    });
+    return Array.from(set).sort();
+  }, [assets, customMoodboards]);
+
+  // ---------------------------------------------------------------------------
   // Derived Filtering State
   // ---------------------------------------------------------------------------
   const activeCategory = categories.find((c) => c.id === activeCategoryId);
   const activeCategoryName = activeCategory ? activeCategory.name : 'All Assets';
 
   const displayedAssets = assets.filter((asset) => {
-    if (activeCategoryId === 'cat-all') return true;
-    return asset.categories.includes(activeCategoryId);
+    // 1. Differentiate library modes (3D vs 2D)
+    if (libraryMode === '2d') {
+      if (asset.type !== '2d') return false;
+    } else {
+      if (asset.type === '2d') return false;
+    }
+
+    // 2. Filter by category or pseudo-category (orientation/moodboards)
+    if (activeCategoryId !== 'cat-all') {
+      if (activeCategoryId === 'cat-2d-landscape') {
+        if (asset.orientation !== 'landscape') return false;
+      } else if (activeCategoryId === 'cat-2d-portrait') {
+        if (asset.orientation !== 'portrait') return false;
+      } else if (activeCategoryId === 'cat-2d-square') {
+        if (asset.orientation !== 'square') return false;
+      } else if (activeCategoryId.startsWith('moodboard-')) {
+        const mbName = activeCategoryId.replace('moodboard-', '');
+        if (!asset.moodboards || !asset.moodboards.includes(mbName)) return false;
+      } else {
+        if (!asset.categories.includes(activeCategoryId)) return false;
+      }
+    }
+
+    // 3. Color matching filter for 2D library
+    if (libraryMode === '2d' && selectedColorFilter) {
+      if (!matchesColorFilter(asset.colors, selectedColorFilter)) return false;
+    }
+
+    return true;
   });
 
   const selectedAsset = assets.find((a) => a.id === selectedAssetId) || null;
@@ -762,6 +883,13 @@ export default function App() {
           onRenameCategory={handleRenameCategory}
           onDeleteCategory={handleDeleteCategory}
           onReorderCategory={handleReorderCategory}
+          libraryMode={libraryMode}
+          onLibraryModeChange={setLibraryMode}
+          moodboards={computedMoodboardsList}
+          onCreateMoodboard={handleCreateMoodboard}
+          onDeleteMoodboard={handleDeleteMoodboard}
+          selectedColorFilter={selectedColorFilter}
+          onSelectColorFilter={setSelectedColorFilter}
         />
 
         {/* Central Workspace (Includes Scanner and Card Grid) */}
@@ -821,6 +949,8 @@ export default function App() {
               onRemoveFromManager={(id) => setResolutionSelectionAction({ type: 'remove', assetIds: [id] })}
               onMoveAssetPath={handleMoveAssetPath}
               notify={notify}
+              moodboards={computedMoodboardsList}
+              onUpdateAssetMoodboards={handleUpdateAssetMoodboards}
             />
           )}
         </AnimatePresence>

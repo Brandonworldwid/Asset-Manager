@@ -1,4 +1,4 @@
-export type AssetType = '3d' | '3dplant' | 'surface' | 'decal' | 'atlas';
+export type AssetType = '3d' | '3dplant' | 'surface' | 'decal' | 'atlas' | '2d';
 
 export interface MeshStats {
   vertices: number;
@@ -8,8 +8,8 @@ export interface MeshStats {
 
 export interface TextureFile {
   name: string;
-  type: 'Albedo' | 'Normal' | 'Roughness' | 'Displacement' | 'AO' | 'Opacity' | 'Cavity';
-  resolution: '1k' | '2k' | '4k' | '8k';
+  type: string; // e.g., 'Albedo', 'Normal', 'Roughness', 'Displacement', 'AO', 'Opacity', 'Cavity', '2D Source File'
+  resolution: string;
   size: string;
   rawSize: number;
 }
@@ -20,7 +20,7 @@ export interface Asset {
   type: AssetType;
   size: number; // in bytes
   isZipped: boolean;
-  resolution: '1k' | '2k' | '4k' | '8k';
+  resolution: string;
   thumbnailUrl: string;
   tags: string[];
   categories: string[]; // Category IDs
@@ -33,6 +33,12 @@ export interface Asset {
   packName?: string;
   country?: string;
   region?: string;
+  colors?: string[];
+  orientation?: 'landscape' | 'portrait' | 'square';
+  aspectRatio?: string;
+  width?: number;
+  height?: number;
+  moodboards?: string[];
 }
 
 export interface Subcategory {

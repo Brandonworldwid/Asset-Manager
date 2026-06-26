@@ -22,7 +22,8 @@ import {
   Copy,
   Globe,
   Calendar,
-  Folder
+  Folder,
+  Image as ImageIcon
 } from 'lucide-react';
 import { Asset, AssetType, getAssetGroupKey, getAssetGroupName } from '../types';
 
@@ -75,6 +76,7 @@ const typeIcons: Record<AssetType, React.ComponentType<any>> = {
   'surface': Layers,
   'atlas': LayoutGrid,
   'decal': Tag,
+  '2d': ImageIcon,
 };
 
 const typeLabels: Record<AssetType, string> = {
@@ -83,6 +85,7 @@ const typeLabels: Record<AssetType, string> = {
   'surface': 'Surface',
   'atlas': 'Atlas Map',
   'decal': 'Decal',
+  '2d': '2D Image',
 };
 
 export default function AssetGrid({
@@ -106,6 +109,7 @@ export default function AssetGrid({
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
   const [quickViewAsset, setQuickViewAsset] = useState<Asset | null>(null);
   const [copiedPath, setCopiedPath] = useState(false);
+  const [useTransparencyGrid, setUseTransparencyGrid] = useState(false);
   const [visibleCount, setVisibleCount] = useState(100);
 
   // Reset visible items count when filters or assets list size change
@@ -670,9 +674,19 @@ export default function AssetGrid({
                 </button>
 
                 {/* Left Side: Thumbnail Preview Frame */}
-                <div className="md:w-1/2 h-[260px] md:h-full relative bg-[#09090a] flex items-center justify-center overflow-hidden border-b md:border-b-0 md:border-r border-white/5">
-                  {/* Grid background effect */}
-                  <div className="absolute inset-0 opacity-[0.03] bg-[linear-gradient(to_right,#808080_1px,transparent_1px),linear-gradient(to_bottom,#808080_1px,transparent_1px)] bg-[size:14px_24px]" />
+                <div 
+                  className="md:w-1/2 h-[260px] md:h-full relative bg-[#09090a] flex items-center justify-center overflow-hidden border-b md:border-b-0 md:border-r border-white/5"
+                  style={useTransparencyGrid ? { 
+                    backgroundImage: 'linear-gradient(45deg, #18181b 25%, transparent 25%), linear-gradient(-45deg, #18181b 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #18181b 75%), linear-gradient(-45deg, transparent 75%, #18181b 75%)', 
+                    backgroundSize: '16px 16px', 
+                    backgroundPosition: '0 0, 0 8px, 8px -8px, -8px 0', 
+                    backgroundColor: '#0a0a0c' 
+                  } : {}}
+                >
+                  {/* Grid background effect (only when checkerboard is off) */}
+                  {!useTransparencyGrid && (
+                    <div className="absolute inset-0 opacity-[0.03] bg-[linear-gradient(to_right,#808080_1px,transparent_1px),linear-gradient(to_bottom,#808080_1px,transparent_1px)] bg-[size:14px_24px]" />
+                  )}
                   <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-black/20" />
 
                   <img
@@ -683,7 +697,7 @@ export default function AssetGrid({
                   />
 
                   {/* Top-left Badges */}
-                  <div className="absolute top-4 left-4 flex flex-col gap-1.5">
+                  <div className="absolute top-4 left-4 flex flex-col gap-1.5 z-30">
                     <span className="bg-blue-600 border border-blue-400/30 text-white rounded px-2.5 py-0.5 text-[10px] font-bold font-mono tracking-wide shadow-lg flex items-center gap-1.5">
                       <TypeIcon className="w-3.5 h-3.5" />
                       {typeLabels[freshAsset.type].toUpperCase()}
@@ -692,6 +706,22 @@ export default function AssetGrid({
                       {freshAsset.resolution.toUpperCase()} RESOLUTION
                     </span>
                   </div>
+
+                  {/* Checkerboard Backdrop Toggle for 2D assets */}
+                  {freshAsset.type === '2d' && (
+                    <button
+                      onClick={() => setUseTransparencyGrid(!useTransparencyGrid)}
+                      className={`absolute top-4 right-16 px-2.5 py-1 text-[10px] font-bold font-mono rounded-lg border flex items-center gap-1.5 transition-colors cursor-pointer backdrop-blur-sm shadow-md z-30 ${
+                        useTransparencyGrid
+                          ? 'bg-blue-600 border-blue-400 text-white hover:bg-blue-500'
+                          : 'bg-black/75 border-white/10 text-gray-400 hover:text-white'
+                      }`}
+                      title="Toggle checkered background for alpha/transparency channel"
+                    >
+                      <Layers className="w-3.5 h-3.5" />
+                      <span>{useTransparencyGrid ? 'ALPHA ON' : 'ALPHA OFF'}</span>
+                    </button>
+                  )}
 
                   {/* Bottom Actions overlay */}
                   <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between">

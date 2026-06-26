@@ -23,7 +23,10 @@ import {
   Package,
   Flame,
   Trees,
-  Compass
+  Compass,
+  Palette,
+  Eye,
+  Image as ImageIcon
 } from 'lucide-react';
 import { Category } from '../types';
 
@@ -35,6 +38,13 @@ interface SidebarProps {
   onRenameCategory: (id: string, newName: string) => void;
   onDeleteCategory: (id: string) => void;
   onReorderCategory: (id: string, direction: 'up' | 'down') => void;
+  libraryMode: '3d' | '2d';
+  onLibraryModeChange: (mode: '3d' | '2d') => void;
+  moodboards: string[];
+  onCreateMoodboard: (name: string) => void;
+  onDeleteMoodboard: (name: string) => void;
+  selectedColorFilter: string | null;
+  onSelectColorFilter: (color: string | null) => void;
 }
 
 const iconMap: Record<string, React.ComponentType<any>> = {
@@ -62,11 +72,20 @@ export default function Sidebar({
   onRenameCategory,
   onDeleteCategory,
   onReorderCategory,
+  libraryMode,
+  onLibraryModeChange,
+  moodboards,
+  onCreateMoodboard,
+  onDeleteMoodboard,
+  selectedColorFilter,
+  onSelectColorFilter,
 }: SidebarProps) {
   const [newCatName, setNewCatName] = useState('');
   const [editingCatId, setEditingCatId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState('');
   const [showAddForm, setShowAddForm] = useState(false);
+  const [newMoodboardName, setNewMoodboardName] = useState('');
+  const [showMoodboardAdd, setShowMoodboardAdd] = useState(false);
   const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>(() => {
     return {
       'cat-megascans': true,
@@ -271,6 +290,26 @@ export default function Sidebar({
   // ---------------------------------------------------------------------------
   // Expanded Sidebar (Resizable)
   // ---------------------------------------------------------------------------
+  const colorSwatches = [
+    { label: 'Crimson', value: '#EF4444' },
+    { label: 'Amber', value: '#F59E0B' },
+    { label: 'Emerald', value: '#10B981' },
+    { label: 'Blue', value: '#3B82F6' },
+    { label: 'Purple', value: '#8B5CF6' },
+    { label: 'Gray', value: '#6B7280' },
+    { label: 'White', value: '#F3F4F6' },
+    { label: 'Dark', value: '#1F2937' },
+  ];
+
+  const handleCreateMoodboardSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newMoodboardName.trim()) {
+      onCreateMoodboard(newMoodboardName.trim());
+      setNewMoodboardName('');
+      setShowMoodboardAdd(false);
+    }
+  };
+
   return (
     <div 
       className="border-r border-white/5 bg-[#111111] flex flex-col h-full select-none relative shrink-0" 
@@ -305,239 +344,472 @@ export default function Sidebar({
         </button>
       </div>
 
-      {/* Categories List */}
-      <div className="flex-1 overflow-y-auto p-3 space-y-4 scrollbar-thin scrollbar-thumb-white/5" id="sidebar-categories">
-        <div>
-          <div className="flex items-center justify-between px-2 mb-2">
-            <span className="font-sans text-[10px] font-bold text-gray-500 uppercase tracking-widest">Library</span>
-            <button
-              onClick={() => setShowAddForm(!showAddForm)}
-              className="p-1 rounded text-gray-500 hover:text-blue-400 hover:bg-white/5 transition-colors"
-              title="Add Category"
-              id="add-category-btn"
-            >
-              <Plus className="w-3.5 h-3.5" />
-            </button>
-          </div>
+      {/* 3D vs 2D Library Switcher */}
+      <div className="px-3 py-2 border-b border-white/5 bg-[#0F0F0F]/60 shrink-0" id="library-mode-switcher">
+        <div className="bg-[#18181B] p-1 rounded-lg flex items-center gap-1 border border-white/5">
+          <button
+            onClick={() => {
+              onLibraryModeChange('3d');
+              onSelectCategory('cat-all');
+            }}
+            className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-md text-[10px] font-bold tracking-tight uppercase transition-all duration-150 cursor-pointer ${
+              libraryMode === '3d'
+                ? 'bg-blue-600 text-white shadow-md font-extrabold shadow-blue-500/15'
+                : 'text-gray-500 hover:text-gray-300'
+            }`}
+            id="lib-mode-3d-btn"
+            type="button"
+          >
+            <Box className="w-3.5 h-3.5" />
+            <span>3D Assets</span>
+          </button>
+          <button
+            onClick={() => {
+              onLibraryModeChange('2d');
+              onSelectCategory('cat-all');
+              onSelectColorFilter(null);
+            }}
+            className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-md text-[10px] font-bold tracking-tight uppercase transition-all duration-150 cursor-pointer ${
+              libraryMode === '2d'
+                ? 'bg-blue-600 text-white shadow-md font-extrabold shadow-blue-500/15'
+                : 'text-gray-500 hover:text-gray-300'
+            }`}
+            id="lib-mode-2d-btn"
+            type="button"
+          >
+            <ImageIcon className="w-3.5 h-3.5" />
+            <span>2D Library</span>
+          </button>
+        </div>
+      </div>
 
-          {/* Add Category Form */}
-          <AnimatePresence>
-            {showAddForm && (
-              <motion.form
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: 'auto', opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                onSubmit={handleCreate}
-                className="px-2 mb-3 overflow-hidden"
+      {/* Categories / Filters List */}
+      <div className="flex-1 overflow-y-auto p-3 space-y-5 scrollbar-thin scrollbar-thumb-white/5" id="sidebar-categories">
+        {libraryMode === '3d' ? (
+          <div>
+            <div className="flex items-center justify-between px-2 mb-2">
+              <span className="font-sans text-[10px] font-bold text-gray-500 uppercase tracking-widest">Library</span>
+              <button
+                onClick={() => setShowAddForm(!showAddForm)}
+                className="p-1 rounded text-gray-500 hover:text-blue-400 hover:bg-white/5 transition-colors"
+                title="Add Category"
+                id="add-category-btn"
               >
-                <div className="flex gap-1.5 items-center bg-white/5 border border-white/10 rounded p-1">
-                  <input
-                    type="text"
-                    value={newCatName}
-                    onChange={(e) => setNewCatName(e.target.value)}
-                    placeholder="New category..."
-                    className="flex-1 bg-transparent text-xs text-white border-none outline-none focus:ring-0 placeholder:text-gray-600 px-1"
-                    autoFocus
-                    id="new-category-input"
-                  />
-                  <button
-                    type="submit"
-                    className="p-1 bg-blue-600 hover:bg-blue-700 rounded text-white transition-colors"
-                    id="submit-category-btn"
-                  >
-                    <Check className="w-3 h-3 stroke-[3]" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setShowAddForm(false)}
-                    className="p-1 text-gray-400 hover:text-white transition-colors"
-                    id="cancel-category-btn"
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
-                </div>
-              </motion.form>
-            )}
-          </AnimatePresence>
+                <Plus className="w-3.5 h-3.5" />
+              </button>
+            </div>
 
-          <div className="space-y-1" id="categories-list-container">
-            {categories.map((cat, index) => {
-              const Icon = iconMap[cat.icon || ''] || Tag;
-              const isActive = activeCategoryId === cat.id;
-              const isEdit = editingCatId === cat.id;
-              const protect = isProtected(cat.id);
-              const hasSubcategories = cat.subcategories && cat.subcategories.length > 0;
-              const isExpanded = expandedCategories[cat.id];
-
-              return (
-                <div key={cat.id} className="space-y-0.5">
-                  <motion.div
-                    layoutId={`cat-item-${cat.id}`}
-                    className={`group relative flex items-center justify-between rounded px-2 py-1.5 transition-all text-xs border ${
-                      isActive
-                        ? 'bg-blue-600/10 border-blue-500/20 text-blue-400'
-                        : 'border-transparent text-gray-400 hover:text-gray-200 hover:bg-white/5'
-                    }`}
-                    id={`category-${cat.id}`}
-                  >
-                    {/* Category Link or Inline Edit */}
-                    <div
-                      className="flex-1 flex items-center gap-1.5 cursor-pointer select-none min-w-0"
-                      onClick={() => {
-                        if (!isEdit) {
-                          onSelectCategory(cat.id);
-                          if (hasSubcategories) {
-                            setExpandedCategories(prev => ({ ...prev, [cat.id]: !prev[cat.id] }));
-                          }
-                        }
-                      }}
+            {/* Add Category Form */}
+            <AnimatePresence>
+              {showAddForm && (
+                <motion.form
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  onSubmit={handleCreate}
+                  className="px-2 mb-3 overflow-hidden"
+                >
+                  <div className="flex gap-1.5 items-center bg-white/5 border border-white/10 rounded p-1">
+                    <input
+                      type="text"
+                      value={newCatName}
+                      onChange={(e) => setNewCatName(e.target.value)}
+                      placeholder="New category..."
+                      className="flex-1 bg-transparent text-xs text-white border-none outline-none focus:ring-0 placeholder:text-gray-600 px-1"
+                      autoFocus
+                      id="new-category-input"
+                    />
+                    <button
+                      type="submit"
+                      className="p-1 bg-blue-600 hover:bg-blue-700 rounded text-white transition-colors"
+                      id="submit-category-btn"
                     >
-                      {/* Arrow before category if there is subcategories */}
-                      <div className="w-4 h-4 flex items-center justify-center shrink-0">
-                        {hasSubcategories ? (
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              const topLevelIds = categories.map(c => c.id);
-                              toggleCat(cat.id, topLevelIds);
-                            }}
-                            className="p-0.5 rounded text-gray-500 hover:text-white hover:bg-white/5 transition-colors cursor-pointer"
-                          >
-                            {isExpanded ? (
-                              <ChevronDown className="w-3 h-3" />
-                            ) : (
-                              <ChevronRight className="w-3 h-3" />
-                            )}
-                          </button>
-                        ) : null}
-                      </div>
+                      <Check className="w-3 h-3 stroke-[3]" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowAddForm(false)}
+                      className="p-1 text-gray-400 hover:text-white transition-colors"
+                      id="cancel-category-btn"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                </motion.form>
+              )}
+            </AnimatePresence>
 
-                      <Icon className={`w-3.5 h-3.5 shrink-0 ${isActive ? 'text-blue-400' : 'text-gray-500 group-hover:text-gray-400'}`} />
-                      
-                      {isEdit ? (
-                        <input
-                          type="text"
-                          value={editingName}
-                          onChange={(e) => setEditingName(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') saveEdit(cat.id);
-                            if (e.key === 'Escape') setEditingCatId(null);
-                          }}
-                          className="bg-black/60 border border-white/15 rounded px-1 py-0.5 text-[11px] text-white outline-none w-full focus:border-blue-500"
-                          autoFocus
-                          onClick={(e) => e.stopPropagation()}
-                          id={`edit-cat-name-${cat.id}`}
-                        />
-                      ) : (
-                        <span className="font-medium truncate" onClick={() => {
-                           if (!isEdit) {
-                             onSelectCategory(cat.id);
-                             if (hasSubcategories) {
-                               const topLevelIds = categories.map(c => c.id);
-                               toggleCat(cat.id, topLevelIds);
-                             }
-                           }
-                        }}>{cat.name}</span>
-                      )}
-                    </div>
+            <div className="space-y-1" id="categories-list-container">
+              {categories.map((cat, index) => {
+                const Icon = iconMap[cat.icon || ''] || Tag;
+                const isActive = activeCategoryId === cat.id;
+                const isEdit = editingCatId === cat.id;
+                const protect = isProtected(cat.id);
+                const hasSubcategories = cat.subcategories && cat.subcategories.length > 0;
+                const isExpanded = expandedCategories[cat.id];
 
-                    {/* Actions (Only visible for custom, non-protected categories on hover) */}
-                    {!protect && (
-                      <div className="opacity-0 group-hover:opacity-100 flex items-center gap-0.5 ml-1.5 transition-opacity shrink-0 bg-[#161616] py-0.5 px-0.5 rounded border border-white/5">
+                return (
+                  <div key={cat.id} className="space-y-0.5">
+                    <motion.div
+                      layoutId={`cat-item-${cat.id}`}
+                      className={`group relative flex items-center justify-between rounded px-2 py-1.5 transition-all text-xs border ${
+                        isActive
+                          ? 'bg-blue-600/10 border-blue-500/20 text-blue-400'
+                          : 'border-transparent text-gray-400 hover:text-gray-200 hover:bg-white/5'
+                      }`}
+                      id={`category-${cat.id}`}
+                    >
+                      {/* Category Link or Inline Edit */}
+                      <div
+                        className="flex-1 flex items-center gap-1.5 cursor-pointer select-none min-w-0"
+                        onClick={() => {
+                          if (!isEdit) {
+                            onSelectCategory(cat.id);
+                            if (hasSubcategories) {
+                              setExpandedCategories(prev => ({ ...prev, [cat.id]: !prev[cat.id] }));
+                            }
+                          }
+                        }}
+                      >
+                        {/* Arrow before category if there is subcategories */}
+                        <div className="w-4 h-4 flex items-center justify-center shrink-0">
+                          {hasSubcategories ? (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const topLevelIds = categories.map(c => c.id);
+                                toggleCat(cat.id, topLevelIds);
+                              }}
+                              className="p-0.5 rounded text-gray-500 hover:text-white hover:bg-white/5 transition-colors cursor-pointer"
+                            >
+                              {isExpanded ? (
+                                <ChevronDown className="w-3 h-3" />
+                              ) : (
+                                <ChevronRight className="w-3 h-3" />
+                              )}
+                            </button>
+                          ) : null}
+                        </div>
+
+                        <Icon className={`w-3.5 h-3.5 shrink-0 ${isActive ? 'text-blue-400' : 'text-gray-500 group-hover:text-gray-400'}`} />
+                        
                         {isEdit ? (
-                          <>
-                            <button
-                              onClick={() => saveEdit(cat.id)}
-                              className="p-0.5 hover:text-emerald-400 text-gray-500 cursor-pointer"
-                              title="Save"
-                              id={`save-cat-edit-${cat.id}`}
-                            >
-                              <Check className="w-2.5 h-2.5" />
-                            </button>
-                            <button
-                              onClick={() => setEditingCatId(null)}
-                              className="p-0.5 hover:text-rose-400 text-gray-500 cursor-pointer"
-                              title="Cancel"
-                              id={`cancel-cat-edit-${cat.id}`}
-                            >
-                              <X className="w-2.5 h-2.5" />
-                            </button>
-                          </>
+                          <input
+                            type="text"
+                            value={editingName}
+                            onChange={(e) => setEditingName(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') saveEdit(cat.id);
+                              if (e.key === 'Escape') setEditingCatId(null);
+                            }}
+                            className="bg-black/60 border border-white/15 rounded px-1 py-0.5 text-[11px] text-white outline-none w-full focus:border-blue-500"
+                            autoFocus
+                            onClick={(e) => e.stopPropagation()}
+                            id={`edit-cat-name-${cat.id}`}
+                          />
                         ) : (
-                          <>
-                            {/* Reordering */}
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                onReorderCategory(cat.id, 'up');
-                              }}
-                              disabled={index === 6} // First custom item (0-5 are protected default categories)
-                              className="p-0.5 hover:text-white text-gray-600 disabled:opacity-20 disabled:hover:text-gray-600 cursor-pointer"
-                              title="Move Up"
-                              id={`move-up-cat-${cat.id}`}
-                            >
-                              <ArrowUp className="w-2.5 h-2.5" />
-                            </button>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                onReorderCategory(cat.id, 'down');
-                              }}
-                              disabled={index === categories.length - 1}
-                              className="p-0.5 hover:text-white text-gray-600 disabled:opacity-20 disabled:hover:text-gray-600 cursor-pointer"
-                              title="Move Down"
-                              id={`move-down-cat-${cat.id}`}
-                            >
-                              <ArrowDown className="w-2.5 h-2.5" />
-                            </button>
-                            {/* Editing */}
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                startEditing(cat);
-                              }}
-                              className="p-0.5 hover:text-blue-400 text-gray-500 cursor-pointer"
-                              title="Rename"
-                              id={`edit-cat-btn-${cat.id}`}
-                            >
-                              <Edit2 className="w-2.5 h-2.5" />
-                            </button>
-                            {/* Deleting */}
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                onDeleteCategory(cat.id);
-                              }}
-                              className="p-0.5 hover:text-rose-400 text-gray-500 cursor-pointer"
-                              title="Delete"
-                              id={`delete-cat-btn-${cat.id}`}
-                            >
-                              <Trash2 className="w-2.5 h-2.5" />
-                            </button>
-                          </>
+                          <span className="font-medium truncate" onClick={() => {
+                             if (!isEdit) {
+                               onSelectCategory(cat.id);
+                               if (hasSubcategories) {
+                                 const topLevelIds = categories.map(c => c.id);
+                                 toggleCat(cat.id, topLevelIds);
+                               }
+                             }
+                          }}>{cat.name}</span>
                         )}
                       </div>
-                    )}
-                  </motion.div>
 
-                  {/* Render Subcategories list */}
-                  <AnimatePresence initial={false}>
-                    {hasSubcategories && isExpanded && (
-                      <RecursiveSubcategoryList subcategories={cat.subcategories!} parentId={cat.id} depth={1} />
-                    )}
-                  </AnimatePresence>
-                </div>
-              );
-            })}
+                      {/* Actions (Only visible for custom, non-protected categories on hover) */}
+                      {!protect && (
+                        <div className="opacity-0 group-hover:opacity-100 flex items-center gap-0.5 ml-1.5 transition-opacity shrink-0 bg-[#161616] py-0.5 px-0.5 rounded border border-white/5">
+                          {isEdit ? (
+                            <>
+                              <button
+                                onClick={() => saveEdit(cat.id)}
+                                className="p-0.5 hover:text-emerald-400 text-gray-500 cursor-pointer"
+                                title="Save"
+                                id={`save-cat-edit-${cat.id}`}
+                              >
+                                <Check className="w-2.5 h-2.5" />
+                              </button>
+                              <button
+                                onClick={() => setEditingCatId(null)}
+                                className="p-0.5 hover:text-rose-400 text-gray-500 cursor-pointer"
+                                title="Cancel"
+                                id={`cancel-cat-edit-${cat.id}`}
+                              >
+                                <X className="w-2.5 h-2.5" />
+                              </button>
+                            </>
+                          ) : (
+                            <>
+                              {/* Reordering */}
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onReorderCategory(cat.id, 'up');
+                                }}
+                                disabled={index === 6} // First custom item (0-5 are protected default categories)
+                                className="p-0.5 hover:text-white text-gray-600 disabled:opacity-20 disabled:hover:text-gray-600 cursor-pointer"
+                                title="Move Up"
+                                id={`move-up-cat-${cat.id}`}
+                              >
+                                <ArrowUp className="w-2.5 h-2.5" />
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onReorderCategory(cat.id, 'down');
+                                }}
+                                disabled={index === categories.length - 1}
+                                className="p-0.5 hover:text-white text-gray-600 disabled:opacity-20 disabled:hover:text-gray-600 cursor-pointer"
+                                title="Move Down"
+                                id={`move-down-cat-${cat.id}`}
+                              >
+                                <ArrowDown className="w-2.5 h-2.5" />
+                              </button>
+                              {/* Editing */}
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  startEditing(cat);
+                                }}
+                                className="p-0.5 hover:text-blue-400 text-gray-500 cursor-pointer"
+                                title="Rename"
+                                id={`edit-cat-btn-${cat.id}`}
+                              >
+                                <Edit2 className="w-2.5 h-2.5" />
+                              </button>
+                              {/* Deleting */}
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onDeleteCategory(cat.id);
+                                }}
+                                className="p-0.5 hover:text-rose-400 text-gray-500 cursor-pointer"
+                                title="Delete"
+                                id={`delete-cat-btn-${cat.id}`}
+                              >
+                                <Trash2 className="w-2.5 h-2.5" />
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      )}
+                    </motion.div>
+
+                    {/* Render Subcategories list */}
+                    <AnimatePresence initial={false}>
+                      {hasSubcategories && isExpanded && (
+                        <RecursiveSubcategoryList subcategories={cat.subcategories!} parentId={cat.id} depth={1} />
+                      )}
+                    </AnimatePresence>
+                  </div>
+                );
+              })}
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="space-y-5">
+            {/* 1. 2D Standard Filters */}
+            <div className="space-y-1">
+              <span className="font-sans text-[10px] font-bold text-gray-500 uppercase tracking-widest px-2 block mb-2">Creative Assets</span>
+              
+              <button
+                onClick={() => onSelectCategory('cat-all')}
+                className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-left border transition-all ${
+                  activeCategoryId === 'cat-all'
+                    ? 'bg-blue-600/10 border-blue-500/25 text-blue-400 font-bold'
+                    : 'border-transparent text-gray-400 hover:text-gray-200 hover:bg-white/5'
+                }`}
+                type="button"
+              >
+                <ImageIcon className="w-3.5 h-3.5" />
+                <span>All 2D Assets</span>
+              </button>
+
+              <button
+                onClick={() => onSelectCategory('cat-favorites')}
+                className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-left border transition-all ${
+                  activeCategoryId === 'cat-favorites'
+                    ? 'bg-blue-600/10 border-blue-500/25 text-blue-400 font-bold'
+                    : 'border-transparent text-gray-400 hover:text-gray-200 hover:bg-white/5'
+                }`}
+                type="button"
+              >
+                <Star className="w-3.5 h-3.5 text-yellow-500" />
+                <span>Favorites</span>
+              </button>
+            </div>
+
+            {/* 2. Orientation Filters */}
+            <div className="space-y-1">
+              <span className="font-sans text-[10px] font-bold text-gray-500 uppercase tracking-widest px-2 block mb-2">Orientation</span>
+              <button
+                onClick={() => onSelectCategory('cat-2d-landscape')}
+                className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-left border transition-all ${
+                  activeCategoryId === 'cat-2d-landscape'
+                    ? 'bg-blue-600/10 border-blue-500/25 text-blue-400 font-bold'
+                    : 'border-transparent text-gray-400 hover:text-gray-200 hover:bg-white/5'
+                }`}
+                type="button"
+              >
+                <LayoutGrid className="w-3.5 h-3.5 rotate-90" />
+                <span>Landscape (Wide)</span>
+              </button>
+
+              <button
+                onClick={() => onSelectCategory('cat-2d-portrait')}
+                className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-left border transition-all ${
+                  activeCategoryId === 'cat-2d-portrait'
+                    ? 'bg-blue-600/10 border-blue-500/25 text-blue-400 font-bold'
+                    : 'border-transparent text-gray-400 hover:text-gray-200 hover:bg-white/5'
+                }`}
+                type="button"
+              >
+                <LayoutGrid className="w-3.5 h-3.5" />
+                <span>Portrait (Tall)</span>
+              </button>
+
+              <button
+                onClick={() => onSelectCategory('cat-2d-square')}
+                className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-left border transition-all ${
+                  activeCategoryId === 'cat-2d-square'
+                    ? 'bg-blue-600/10 border-blue-500/25 text-blue-400 font-bold'
+                    : 'border-transparent text-gray-400 hover:text-gray-200 hover:bg-white/5'
+                }`}
+                type="button"
+              >
+                <Box className="w-3.5 h-3.5" />
+                <span>Square (1:1)</span>
+              </button>
+            </div>
+
+            {/* 3. Color Swatches Filter */}
+            <div>
+              <div className="flex items-center justify-between px-2 mb-2">
+                <span className="font-sans text-[10px] font-bold text-gray-500 uppercase tracking-widest">Color Matcher</span>
+                {selectedColorFilter && (
+                  <button
+                    onClick={() => onSelectColorFilter(null)}
+                    className="text-[9px] font-mono font-bold text-blue-400 hover:text-blue-300 transition-colors uppercase shrink-0"
+                    type="button"
+                  >
+                    Reset
+                  </button>
+                )}
+              </div>
+              <div className="grid grid-cols-4 gap-2 px-1 py-1 bg-white/[0.02] border border-white/5 rounded-xl">
+                {colorSwatches.map((sw) => {
+                  const isColorActive = selectedColorFilter === sw.value;
+                  return (
+                    <button
+                      key={sw.value}
+                      onClick={() => onSelectColorFilter(isColorActive ? null : sw.value)}
+                      style={{ backgroundColor: sw.value }}
+                      className={`w-full aspect-square rounded-lg border-2 relative transition-all duration-150 hover:scale-105 active:scale-95 cursor-pointer flex items-center justify-center ${
+                        isColorActive
+                          ? 'border-white ring-2 ring-blue-500 scale-105 shadow-md'
+                          : 'border-white/10 hover:border-white/30'
+                      }`}
+                      title={`${sw.label} palette lookup`}
+                      type="button"
+                    >
+                      {isColorActive && (
+                        <Check className={`w-3.5 h-3.5 ${sw.value === '#F3F4F6' ? 'text-black' : 'text-white'} stroke-[3.5]`} />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* 4. Moodboards (Virtual Collections) */}
+            <div>
+              <div className="flex items-center justify-between px-2 mb-2">
+                <span className="font-sans text-[10px] font-bold text-gray-500 uppercase tracking-widest">Moodboards</span>
+                <button
+                  onClick={() => setShowMoodboardAdd(!showMoodboardAdd)}
+                  className="p-1 rounded text-gray-500 hover:text-blue-400 hover:bg-white/5 transition-colors"
+                  title="Create Moodboard"
+                  id="add-moodboard-btn"
+                  type="button"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                </button>
+              </div>
+
+              {showMoodboardAdd && (
+                <form onSubmit={handleCreateMoodboardSubmit} className="px-2 mb-2 overflow-hidden">
+                  <div className="flex gap-1.5 items-center bg-white/5 border border-white/10 rounded p-1">
+                    <input
+                      type="text"
+                      value={newMoodboardName}
+                      onChange={(e) => setNewMoodboardName(e.target.value)}
+                      placeholder="Moodboard name..."
+                      className="flex-1 bg-transparent text-xs text-white border-none outline-none focus:ring-0 placeholder:text-gray-600 px-1"
+                      autoFocus
+                    />
+                    <button
+                      type="submit"
+                      className="p-1 bg-blue-600 hover:bg-blue-700 rounded text-white transition-colors"
+                    >
+                      <Check className="w-3 h-3 stroke-[3]" />
+                    </button>
+                  </div>
+                </form>
+              )}
+
+              <div className="space-y-1">
+                {moodboards.map((mb) => {
+                  const id = `moodboard-${mb}`;
+                  const isMBActive = activeCategoryId === id;
+                  return (
+                    <div
+                      key={mb}
+                      className={`group relative flex items-center justify-between rounded px-2.5 py-1.5 text-xs border transition-all ${
+                        isMBActive
+                          ? 'bg-blue-600/10 border-blue-500/20 text-blue-400 font-bold'
+                          : 'border-transparent text-gray-400 hover:text-gray-200 hover:bg-white/5'
+                      }`}
+                    >
+                      <div
+                        onClick={() => onSelectCategory(id)}
+                        className="flex-1 flex items-center gap-1.5 cursor-pointer truncate"
+                      >
+                        <Compass className="w-3.5 h-3.5 shrink-0 text-blue-500/60" />
+                        <span className="truncate">{mb}</span>
+                      </div>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onDeleteMoodboard(mb);
+                          if (isMBActive) onSelectCategory('cat-all');
+                        }}
+                        className="opacity-0 group-hover:opacity-100 p-1 text-gray-500 hover:text-rose-400 rounded transition-opacity cursor-pointer shrink-0"
+                        title="Delete virtual moodboard"
+                        type="button"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                    </div>
+                  );
+                })}
+                {moodboards.length === 0 && (
+                  <span className="block px-2 py-3 text-[10px] text-gray-600 italic">No moodboards created yet.</span>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Footer Info */}
       <div className="p-3 border-t border-white/5 bg-[#0F0F0F] text-center shrink-0" id="sidebar-footer">
         <p className="text-[9px] font-mono text-gray-500 truncate">
-          Double-click cards to quick-zip
+          {libraryMode === '3d' ? 'Double-click cards to quick-zip' : 'Drag assets directly into apps'}
         </p>
       </div>
     </div>

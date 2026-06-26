@@ -42,6 +42,8 @@ interface AssetDetailsProps {
   onRemoveFromManager: (id: string) => void;
   onMoveAssetPath: (id: string, newPath: string) => void;
   notify: (msg: string) => void;
+  moodboards?: string[];
+  onUpdateAssetMoodboards?: (id: string, moodboards: string[]) => void;
 }
 
 export default function AssetDetails({
@@ -56,6 +58,8 @@ export default function AssetDetails({
   onRemoveFromManager,
   onMoveAssetPath,
   notify,
+  moodboards = [],
+  onUpdateAssetMoodboards,
 }: AssetDetailsProps) {
   const [compressing, setCompressing] = useState(false);
   const [compressionProgress, setCompressionProgress] = useState(0);
@@ -833,30 +837,81 @@ export default function AssetDetails({
               <span className="text-gray-400 font-medium">Asset Type</span>
               <span className="text-white font-bold capitalize">{asset.type}</span>
             </div>
-            <div className="flex justify-between py-1 border-b border-white/5">
-              <span className="text-gray-400 font-medium">Max Res</span>
-              <span className="text-white font-bold uppercase">{asset.resolution} Maps</span>
-            </div>
-            {asset.meshStats && (
+            
+            {asset.type === '2d' ? (
+              <>
+                {asset.width && asset.height && (
+                  <div className="flex justify-between py-1 border-b border-white/5">
+                    <span className="text-gray-400 font-medium">Resolution</span>
+                    <span className="text-white font-bold">{asset.width} × {asset.height} px</span>
+                  </div>
+                )}
+                {asset.orientation && (
+                  <div className="flex justify-between py-1 border-b border-white/5">
+                    <span className="text-gray-400 font-medium">Orientation</span>
+                    <span className="text-blue-400 font-bold capitalize">{asset.orientation}</span>
+                  </div>
+                )}
+                {asset.aspectRatio && (
+                  <div className="flex justify-between py-1 border-b border-white/5">
+                    <span className="text-gray-400 font-medium">Aspect Ratio</span>
+                    <span className="text-white font-bold">{asset.aspectRatio}</span>
+                  </div>
+                )}
+                {asset.colors && asset.colors.length > 0 && (
+                  <div className="py-1.5 border-b border-white/5">
+                    <span className="text-gray-400 font-medium block mb-1.5">Dominant Colors (Click to Copy)</span>
+                    <div className="flex flex-wrap gap-1.5 mt-1 bg-black/35 p-1.5 rounded-lg border border-white/5">
+                      {asset.colors.map((colorHex) => (
+                        <button
+                          key={colorHex}
+                          type="button"
+                          onClick={() => {
+                            navigator.clipboard.writeText(colorHex);
+                            notify(`Hex code ${colorHex} copied to clipboard!`);
+                          }}
+                          className="w-6 h-6 rounded-md border border-white/15 cursor-pointer hover:scale-110 hover:border-white/40 active:scale-95 transition-all duration-100 flex items-center justify-center group relative"
+                          style={{ backgroundColor: colorHex }}
+                          title={`Copy hex ${colorHex}`}
+                        >
+                          <span className="absolute bottom-full mb-1 bg-black text-white text-[8px] font-mono py-0.5 px-1.5 rounded opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-100 z-50">
+                            {colorHex}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
+            ) : (
               <>
                 <div className="flex justify-between py-1 border-b border-white/5">
-                  <span className="text-gray-400 font-medium">Mesh Format</span>
-                  <span className="text-blue-400 font-extrabold">{asset.meshStats.format}</span>
+                  <span className="text-gray-400 font-medium">Max Res</span>
+                  <span className="text-white font-bold uppercase">{asset.resolution} Maps</span>
                 </div>
-                <div className="flex justify-between py-1 border-b border-white/5">
-                  <span className="text-gray-400 font-medium">Polygons</span>
-                  <span className="text-white font-bold">{asset.meshStats.triangles.toLocaleString()} tris</span>
-                </div>
+                {asset.meshStats && (
+                  <>
+                    <div className="flex justify-between py-1 border-b border-white/5">
+                      <span className="text-gray-400 font-medium">Mesh Format</span>
+                      <span className="text-blue-400 font-extrabold">{asset.meshStats.format}</span>
+                    </div>
+                    <div className="flex justify-between py-1 border-b border-white/5">
+                      <span className="text-gray-400 font-medium">Polygons</span>
+                      <span className="text-white font-bold">{asset.meshStats.triangles.toLocaleString()} tris</span>
+                    </div>
+                  </>
+                )}
+                {asset.dimensions && (
+                  <div className="flex justify-between py-1 border-b border-white/5">
+                    <span className="text-gray-400 font-medium">Dimensions</span>
+                    <span className="text-white font-bold">
+                      {asset.dimensions.length || '?'}&nbsp;L × {asset.dimensions.width || '?'}&nbsp;W × {asset.dimensions.height || '?'}&nbsp;H
+                    </span>
+                  </div>
+                )}
               </>
             )}
-            {asset.dimensions && (
-              <div className="flex justify-between py-1 border-b border-white/5">
-                <span className="text-gray-400 font-medium">Dimensions</span>
-                <span className="text-white font-bold">
-                  {asset.dimensions.length || '?'}&nbsp;L × {asset.dimensions.width || '?'}&nbsp;W × {asset.dimensions.height || '?'}&nbsp;H
-                </span>
-              </div>
-            )}
+
             {asset.packName && (
               <div className="flex justify-between py-1 border-b border-white/5">
                 <span className="text-gray-400 font-medium">Megascan Pack</span>
@@ -1000,6 +1055,81 @@ export default function AssetDetails({
               );
             })}
           </div>
+        </div>
+
+        {/* Moodboards Association Organizer */}
+        <div className="space-y-3.5 border-t border-white/10 pt-4" id="details-moodboards-section">
+          <h4 className="text-xs font-bold uppercase tracking-widest text-white font-mono flex items-center justify-between">
+            <span className="flex items-center gap-2">
+              <Camera className="w-4 h-4 text-blue-400" />
+              <span>Moodboards</span>
+            </span>
+          </h4>
+          <p className="text-[11px] text-gray-400">Add or remove this asset from your virtual moodboard collections:</p>
+          
+          <div className="space-y-1.5 bg-[#141414] border border-white/10 rounded-xl p-3 max-h-40 overflow-y-auto scrollbar-thin scrollbar-thumb-white/5">
+            {moodboards.length === 0 ? (
+              <span className="text-[10px] text-gray-500 italic block py-1">No moodboards created yet. Create one below!</span>
+            ) : (
+              moodboards.map((mb) => {
+                const isAssigned = (asset.moodboards || []).includes(mb);
+                return (
+                  <label key={mb} className="flex items-center gap-2 text-xs text-gray-300 hover:text-white cursor-pointer select-none py-1">
+                    <input
+                      type="checkbox"
+                      checked={isAssigned}
+                      onChange={() => {
+                        if (!onUpdateAssetMoodboards) return;
+                        const nextMbs = isAssigned
+                          ? (asset.moodboards || []).filter(item => item !== mb)
+                          : [...(asset.moodboards || []), mb];
+                        onUpdateAssetMoodboards(asset.id, nextMbs);
+                      }}
+                      className="rounded border-white/15 bg-black/40 text-blue-600 focus:ring-0 cursor-pointer"
+                    />
+                    <span className="font-sans font-medium truncate">{mb}</span>
+                  </label>
+                );
+              })
+            )}
+          </div>
+
+          {onUpdateAssetMoodboards && (
+            <div className="flex gap-1.5">
+              <input
+                type="text"
+                placeholder="New moodboard..."
+                id="create-details-moodboard-input"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    const val = e.currentTarget.value.trim();
+                    if (val) {
+                      const nextMbs = [...(asset.moodboards || []), val];
+                      onUpdateAssetMoodboards(asset.id, nextMbs);
+                      e.currentTarget.value = '';
+                    }
+                  }
+                }}
+                className="flex-1 bg-[#141414] border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500 placeholder:text-gray-600"
+              />
+              <button
+                type="button"
+                onClick={(e) => {
+                  const input = document.getElementById('create-details-moodboard-input') as HTMLInputElement;
+                  if (input && input.value.trim()) {
+                    const val = input.value.trim();
+                    const nextMbs = [...(asset.moodboards || []), val];
+                    onUpdateAssetMoodboards(asset.id, nextMbs);
+                    input.value = '';
+                  }
+                }}
+                className="px-3 py-1.5 bg-blue-600/20 hover:bg-blue-600/35 border border-blue-500/25 text-blue-400 rounded-lg text-xs font-bold shrink-0 transition-colors"
+              >
+                Add
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Destructive Actions block */}
