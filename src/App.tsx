@@ -38,6 +38,7 @@ import {
 
 import { Asset, Category, getAssetGroupKey } from './types';
 import { DEFAULT_CATEGORIES, INITIAL_ASSETS, MEGASCANS_SUBCATEGORIES } from './data/mockAssets';
+import { mapCategoryPathToIds } from './utils';
 import Sidebar from './components/Sidebar';
 import DirectoryScanner from './components/DirectoryScanner';
 import AssetGrid from './components/AssetGrid';
@@ -162,19 +163,6 @@ export default function App() {
   const [batchScanProgress, setBatchScanProgress] = useState<number>(0);
   const [batchScanLog, setBatchScanLog] = useState<string[]>([]);
 
-  // Save to localStorage whenever states change
-  useEffect(() => {
-    localStorage.setItem('megascan_categories', JSON.stringify(categories));
-  }, [categories]);
-
-  useEffect(() => {
-    localStorage.setItem('megascan_assets', JSON.stringify(assets));
-  }, [assets]);
-
-  useEffect(() => {
-    localStorage.setItem('megascan_evicted_paths', JSON.stringify(evictedAssetPaths));
-  }, [evictedAssetPaths]);
-
   // Trigger transient toast notification
   const notify = (msg: string) => {
     setShowNotification(msg);
@@ -182,6 +170,58 @@ export default function App() {
       setShowNotification(null);
     }, 4000);
   };
+
+  // Save to localStorage whenever states change
+  useEffect(() => {
+    try {
+      localStorage.setItem('megascan_categories', JSON.stringify(categories));
+    } catch (e) {
+      console.error('Failed to save categories to localStorage:', e);
+    }
+  }, [categories]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('megascan_assets', JSON.stringify(assets));
+    } catch (e) {
+      console.error('Failed to save assets to localStorage:', e);
+      notify('Local storage limit reached. Assets will remain active in this session, but some changes won\'t persist across reloads.');
+    }
+  }, [assets]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('megascan_evicted_paths', JSON.stringify(evictedAssetPaths));
+    } catch (e) {
+      console.error('Failed to save evicted paths to localStorage:', e);
+    }
+  }, [evictedAssetPaths]);
+
+  // Synchronize with local Python (FastAPI) cached sqlite library on startup
+  useEffect(() => {
+    fetch('http://127.0.0.1:8000/api/status')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.status === 'running') {
+          fetch('http://127.0.0.1:8000/api/assets')
+            .then((res) => res.json())
+            .then((assetsData) => {
+              if (assetsData.assets && assetsData.assets.length > 0) {
+                const mappedAssets = assetsData.assets.map((a: any) => ({
+                  ...a,
+                  categories: mapCategoryPathToIds(a.categoryPaths || [])
+                }));
+                setAssets(mappedAssets);
+                console.log('Successfully synchronized library from Python SQLite backend!', mappedAssets.length);
+              }
+            })
+            .catch((err) => console.error('Error fetching assets from Python:', err));
+        }
+      })
+      .catch(() => {
+        // Fall back silently to simulated local storage database if local FastAPI is not running
+      });
+  }, []);
 
   // ---------------------------------------------------------------------------
   // Category Management Handlers

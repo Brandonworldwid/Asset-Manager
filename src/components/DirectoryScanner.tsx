@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   FolderSearch,
@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { Asset, AssetType } from '../types';
 import { VIRTUAL_DOWNLOADS_ASSETS, MEGASCANS_SUBCATEGORIES } from '../data/mockAssets';
+import { mapCategoryPathToIds } from '../utils';
 
 interface DirectoryScannerProps {
   libraryAssets: Asset[];
@@ -31,6 +32,22 @@ export default function DirectoryScanner({ libraryAssets, evictedAssetPaths = []
   const [detectedAssets, setDetectedAssets] = useState<Asset[]>([]);
   const [scanComplete, setScanComplete] = useState(false);
   const [realScanError, setRealScanError] = useState<string | null>(null);
+  const [usePythonBackend, setUsePythonBackend] = useState(false);
+
+  // Check if Python FastAPI server is active
+  useEffect(() => {
+    fetch('http://127.0.0.1:8000/api/status')
+      .then(res => res.json())
+      .then(data => {
+        if (data.status === 'running') {
+          setUsePythonBackend(true);
+          console.log('Python backend connected successfully!');
+        }
+      })
+      .catch(() => {
+        setUsePythonBackend(false);
+      });
+  }, []);
 
   // Filter out assets that are already in the library or flagged as evicted
   const getPendingVirtualAssets = () => {
@@ -40,13 +57,6 @@ export default function DirectoryScanner({ libraryAssets, evictedAssetPaths = []
   };
 
   const handleSimulatedScan = async () => {
-    if (isScanning) return;
-    setIsScanning(true);
-    setScanComplete(false);
-    setDetectedAssets([]);
-    setScanLogs([]);
-    setScanProgress(0);
-
     const logs = [
       `Initializing file system scanner...`,
       `Opening directory: ${scanPath}`,
@@ -102,6 +112,76 @@ export default function DirectoryScanner({ libraryAssets, evictedAssetPaths = []
     setScanProgress(100);
     setIsScanning(false);
     setScanComplete(true);
+  };
+
+  const handleScan = async () => {
+    if (isScanning) return;
+    setIsScanning(true);
+    setScanComplete(false);
+    setDetectedAssets([]);
+    setScanLogs([]);
+    setScanProgress(0);
+    setRealScanError(null);
+
+    if (usePythonBackend) {
+      try {
+        setScanLogs([`[INFO] Directing scan to local Python API: http://127.0.0.1:8000/api/scan`, `[INFO] Targeting path: ${scanPath}`]);
+        const response = await fetch('http://127.0.0.1:8000/api/scan', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ path: scanPath })
+        });
+        
+        if (!response.ok) {
+          const errData = await response.json();
+          throw new Error(errData.detail || 'Failed to start backend scan.');
+        }
+
+        // Poll progress from Python background worker
+        const pollInterval = setInterval(async () => {
+          try {
+            const progRes = await fetch('http://127.0.0.1:8000/api/scan/progress');
+            if (!progRes.ok) return;
+            const progData = await progRes.json();
+            
+            setScanProgress(progData.progress);
+            if (progData.logs) {
+              setScanLogs(progData.logs);
+            }
+            if (progData.error) {
+              setRealScanError(progData.error);
+              setIsScanning(false);
+              clearInterval(pollInterval);
+              return;
+            }
+
+            if (!progData.is_scanning) {
+              clearInterval(pollInterval);
+              setIsScanning(false);
+              setScanComplete(true);
+              
+              // Load the newly scanned assets
+              const assetsRes = await fetch('http://127.0.0.1:8000/api/assets');
+              if (assetsRes.ok) {
+                const assetsData = await assetsRes.json();
+                const mappedAssets = assetsData.assets.map((a: any) => ({
+                  ...a,
+                  categories: mapCategoryPathToIds(a.categoryPaths || [])
+                }));
+                setDetectedAssets(mappedAssets);
+              }
+            }
+          } catch (pollErr: any) {
+            console.error('Error polling progress:', pollErr);
+          }
+        }, 800);
+      } catch (err: any) {
+        setRealScanError(err.message || 'Error communicating with local Python backend.');
+        setIsScanning(false);
+      }
+    } else {
+      await handleSimulatedScan();
+    }
   };
 
   const handleImportDetected = () => {
@@ -587,20 +667,37 @@ export default function DirectoryScanner({ libraryAssets, evictedAssetPaths = []
           </div>
         </div>
         <div className="flex gap-2">
-          {/* Real Webkit Folder Upload */}
-          <label className="relative flex items-center gap-1.5 px-2.5 py-1.5 bg-white/5 hover:bg-white/10 text-white border border-white/5 rounded text-xs font-semibold cursor-pointer transition-all">
+          {/* Hybrid Native/Web Folder Select */}
+          <button
+            type="button"
+            onClick={async () => {
+              const winTauri = (window as any).__TAURI__;
+              if (winTauri && winTauri.dialog) {
+                try {
+                  const selected = await winTauri.dialog.open({
+                    directory: true,
+                    multiple: false,
+                    title: "Select Megascans Folder"
+                  });
+                  if (selected && typeof selected === 'string') {
+                    setScanPath(selected);
+                  }
+                } catch (e: any) {
+                  console.error('Tauri folder picker error:', e);
+                }
+              } else {
+                const customPath = prompt("Enter local Megascans folder absolute path:", scanPath);
+                if (customPath) {
+                  setScanPath(customPath);
+                }
+              }
+            }}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 bg-white/5 hover:bg-white/10 text-white border border-white/5 rounded text-xs font-semibold cursor-pointer transition-all"
+            id="real-folder-picker"
+          >
             <FolderOpen className="w-3.5 h-3.5 text-blue-400" />
             <span>Select Folder</span>
-            <input
-              type="file"
-              webkitdirectory=""
-              directory=""
-              multiple
-              onChange={handleRealFolderSelect}
-              className="hidden"
-              id="real-folder-picker"
-            />
-          </label>
+          </button>
         </div>
       </div>
 
@@ -621,7 +718,7 @@ export default function DirectoryScanner({ libraryAssets, evictedAssetPaths = []
                 id="scan-path-input"
               />
               <button
-                onClick={handleSimulatedScan}
+                onClick={handleScan}
                 disabled={isScanning}
                 className="flex items-center gap-1 px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded text-xs transition-colors disabled:opacity-50"
                 id="start-scan-btn"

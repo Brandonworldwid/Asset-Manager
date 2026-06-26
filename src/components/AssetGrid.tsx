@@ -75,6 +75,12 @@ export default function AssetGrid({
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
   const [quickViewAsset, setQuickViewAsset] = useState<Asset | null>(null);
   const [copiedPath, setCopiedPath] = useState(false);
+  const [visibleCount, setVisibleCount] = useState(100);
+
+  // Reset visible items count when filters or assets list size change
+  React.useEffect(() => {
+    setVisibleCount(100);
+  }, [searchQuery, selectedType, sortField, sortOrder, assets.length]);
 
   // Filter and Sort Logic
   const filteredAssets = assets
@@ -332,8 +338,9 @@ export default function AssetGrid({
             </div>
           </div>
         ) : (
-          <div className={`grid ${colsClass} gap-4`} id="asset-cards-grid">
-            {assetGroups.map((group) => {
+          <>
+            <div className={`grid ${colsClass} gap-4`} id="asset-cards-grid">
+            {assetGroups.slice(0, visibleCount).map((group) => {
               const asset = group.primaryAsset;
               const TypeIcon = typeIcons[asset.type] || Box;
               const isMultiSelected = group.allAssets.some(a => selectedAssetIds.includes(a.id));
@@ -504,8 +511,25 @@ export default function AssetGrid({
               );
             })}
           </div>
-        )}
-      </div>
+
+          {assetGroups.length > visibleCount && (
+            <div className="flex flex-col items-center justify-center mt-8 mb-6 pb-6" id="load-more-container">
+              <p className="text-xs text-gray-500 mb-3 font-mono">
+                Showing {visibleCount} of {assetGroups.length} assets
+              </p>
+              <button
+                onClick={() => setVisibleCount(prev => Math.min(prev + 100, assetGroups.length))}
+                className="px-6 py-2.5 bg-[#1C1C1E] hover:bg-[#2C2C2E] border border-white/10 rounded-xl text-xs font-semibold text-gray-200 hover:text-white transition-all shadow-md active:scale-98 cursor-pointer flex items-center gap-2"
+                id="load-more-btn"
+              >
+                <span>Load More Assets</span>
+                <ChevronDown className="w-4 h-4 text-gray-400" />
+              </button>
+            </div>
+          )}
+        </>
+      )}
+    </div>
 
       {/* Quick View Modal */}
       <AnimatePresence>
