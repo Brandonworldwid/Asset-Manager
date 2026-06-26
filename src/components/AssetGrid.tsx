@@ -36,10 +36,38 @@ interface AssetGridProps {
   activeCategoryName: string;
   onToggleFavorite: (id: string) => void;
   columns?: number;
+  isLoading?: boolean;
 }
 
 type SortField = 'name' | 'size' | 'date' | 'type';
 type SortOrder = 'asc' | 'desc';
+
+const AssetCardSkeleton = () => {
+  return (
+    <div className="flex flex-col bg-[#161616] rounded-xl border border-white/5 overflow-hidden select-none h-[280px]">
+      {/* Thumbnail area placeholder */}
+      <div className="relative aspect-video w-full bg-[#1e1e1e] animate-pulse flex items-center justify-center">
+        <Box className="w-8 h-8 text-white/10" />
+        <div className="absolute top-2 left-2 w-12 h-4 bg-white/5 rounded animate-pulse" />
+        <div className="absolute top-2 right-2 w-8 h-4 bg-white/5 rounded animate-pulse" />
+      </div>
+      {/* Meta/Text area placeholder */}
+      <div className="p-3.5 flex flex-col flex-1 justify-between">
+        <div className="space-y-2">
+          {/* Title bar */}
+          <div className="h-4 bg-white/10 rounded w-3/4 animate-pulse" />
+          {/* Subtitle bar */}
+          <div className="h-3 bg-white/5 rounded w-1/2 animate-pulse" />
+        </div>
+        {/* Bottom stats / tags row */}
+        <div className="flex items-center justify-between pt-2 border-t border-white/5">
+          <div className="h-3 bg-white/5 rounded w-1/4 animate-pulse" />
+          <div className="h-3 bg-white/5 rounded w-1/5 animate-pulse" />
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const typeIcons: Record<AssetType, React.ComponentType<any>> = {
   '3d': Box,
@@ -67,10 +95,13 @@ export default function AssetGrid({
   activeCategoryName,
   onToggleFavorite,
   columns = 4,
+  isLoading = false,
 }: AssetGridProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedType, setSelectedType] = useState<string>('all');
   const [isTypeDropdownOpen, setIsTypeDropdownOpen] = useState(false);
+  const [selectedResolution, setSelectedResolution] = useState<string>('all');
+  const [isResDropdownOpen, setIsResDropdownOpen] = useState(false);
   const [sortField, setSortField] = useState<SortField>('date');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
   const [quickViewAsset, setQuickViewAsset] = useState<Asset | null>(null);
@@ -80,7 +111,7 @@ export default function AssetGrid({
   // Reset visible items count when filters or assets list size change
   React.useEffect(() => {
     setVisibleCount(100);
-  }, [searchQuery, selectedType, sortField, sortOrder, assets.length]);
+  }, [searchQuery, selectedType, selectedResolution, sortField, sortOrder, assets.length]);
 
   // Filter and Sort Logic
   const filteredAssets = assets
@@ -91,8 +122,10 @@ export default function AssetGrid({
         asset.id.toLowerCase().includes(searchQuery.toLowerCase());
       
       const matchesType = selectedType === 'all' || asset.type === selectedType;
+      
+      const matchesResolution = selectedResolution === 'all' || asset.resolution.toLowerCase() === selectedResolution.toLowerCase();
 
-      return matchesSearch && matchesType;
+      return matchesSearch && matchesType && matchesResolution;
     })
     .sort((a, b) => {
       let comparison = 0;
@@ -283,6 +316,52 @@ export default function AssetGrid({
             )}
           </div>
 
+          {/* Resolution Filter Dropdown */}
+          <div className="relative" id="res-filter-dropdown-container">
+            <button
+              onClick={() => setIsResDropdownOpen(!isResDropdownOpen)}
+              className="bg-[#121214] border border-white/10 hover:border-white/20 text-gray-300 text-xs rounded-lg px-3.5 py-1.5 flex items-center justify-between gap-3 outline-none select-none transition-all cursor-pointer min-w-[110px]"
+            >
+              <span>
+                {selectedResolution === 'all' ? 'All Resolutions' : selectedResolution.toUpperCase()}
+              </span>
+              <ChevronDown className="w-3.5 h-3.5 text-gray-400" />
+            </button>
+            
+            {isResDropdownOpen && (
+              <>
+                <div 
+                  className="fixed inset-0 z-30" 
+                  onClick={() => setIsResDropdownOpen(false)} 
+                />
+                <div className="absolute left-0 mt-1.5 w-40 bg-[#121214] border border-white/10 rounded-lg shadow-2xl py-1 z-40 text-xs overflow-hidden">
+                  {[
+                    { value: 'all', label: 'All Resolutions' },
+                    { value: '8k', label: '8K Ultra HD' },
+                    { value: '4k', label: '4K High Res' },
+                    { value: '2k', label: '2K Medium Res' },
+                    { value: '1k', label: '1K Standard' },
+                  ].map((opt) => (
+                    <button
+                      key={opt.value}
+                      onClick={() => {
+                        setSelectedResolution(opt.value);
+                        setIsResDropdownOpen(false);
+                      }}
+                      className={`w-full text-left px-3.5 py-2 transition-colors ${
+                        selectedResolution === opt.value
+                          ? 'bg-blue-600/10 text-blue-400 font-bold'
+                          : 'text-gray-300 hover:bg-white/5'
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+
           {/* Sort Toggles in Picture 2 style */}
           <button
             onClick={() => toggleSort('date')}
@@ -327,7 +406,13 @@ export default function AssetGrid({
 
       {/* Grid of Assets (Exactly 4 columns layout requested) */}
       <div className="flex-1 overflow-y-auto p-4 scrollbar-thin scrollbar-thumb-white/5" id="cards-grid-container">
-        {assetGroups.length === 0 ? (
+        {isLoading ? (
+          <div className={`grid ${colsClass} gap-4`} id="asset-cards-grid-loading">
+            {Array.from({ length: 12 }).map((_, i) => (
+              <AssetCardSkeleton key={i} />
+            ))}
+          </div>
+        ) : assetGroups.length === 0 ? (
           <div className="h-92 flex flex-col items-center justify-center text-gray-500 text-center space-y-3.5" id="empty-grid-msg">
             <div className="p-3 bg-[#111111] border border-white/5 rounded-full text-gray-600">
               <SlidersHorizontal className="w-6 h-6" />

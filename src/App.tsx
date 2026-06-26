@@ -102,6 +102,7 @@ export default function App() {
   const [selectedAssetIds, setSelectedAssetIds] = useState<string[]>([]);
   const [showScanner, setShowScanner] = useState<boolean>(false);
   const [showNotification, setShowNotification] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
 
   // Settings state
   const [homePageColumns, setHomePageColumns] = useState<number>(() => {
@@ -121,8 +122,13 @@ export default function App() {
     return localStorage.getItem('megascan_has_bridge_assets') === 'true';
   });
 
+  const [appDataPath, setAppDataPath] = useState<string>('');
+  const [cachePath, setCachePath] = useState<string>('');
+  const [draftAppDataPath, setDraftAppDataPath] = useState<string>('');
+  const [draftCachePath, setDraftCachePath] = useState<string>('');
+
   // Categories editing in Settings states
-  const [activeSettingsTab, setActiveSettingsTab] = useState<'personalization' | 'categories' | 'bridge'>('personalization');
+  const [activeSettingsTab, setActiveSettingsTab] = useState<'personalization' | 'categories' | 'bridge' | 'storage'>('personalization');
   const [draftCategoriesList, setDraftCategoriesList] = useState<Category[]>([]);
   const [categoryNavPath, setCategoryNavPath] = useState<string[]>([]);
   const [newSubcategoryInput, setNewSubcategoryInput] = useState<string>('');
@@ -140,6 +146,8 @@ export default function App() {
     if (showSettingsModal) {
       setDraftHomePageColumns(homePageColumns);
       setDraftCategoriesList(JSON.parse(JSON.stringify(categories)));
+      setDraftAppDataPath(appDataPath);
+      setDraftCachePath(cachePath);
       
       const firstParent = categories.find(c => c.id !== 'cat-all' && c.id !== 'cat-favorites') || categories[0];
       setCategoryNavPath(firstParent ? [firstParent.id] : []);
@@ -151,7 +159,7 @@ export default function App() {
       setIsSettingsVibrating(false);
       setForceSaveButtonRed(false);
     }
-  }, [showSettingsModal, homePageColumns, categories]);
+  }, [showSettingsModal, homePageColumns, categories, appDataPath, cachePath]);
 
   // Save homePageColumns to localStorage
   useEffect(() => {
@@ -199,10 +207,27 @@ export default function App() {
 
   // Synchronize with local Python (FastAPI) cached sqlite library on startup
   useEffect(() => {
+    setIsLoading(true);
     fetch('http://127.0.0.1:8000/api/status')
       .then((res) => res.json())
       .then((data) => {
         if (data.status === 'running') {
+          // Fetch settings first
+          fetch('http://127.0.0.1:8000/api/settings')
+            .then((r) => r.json())
+            .then((sData) => {
+              if (sData) {
+                setAppDataPath(sData.app_data_path || '');
+                setCachePath(sData.cache_path || '');
+                setDraftAppDataPath(sData.app_data_path || '');
+                setDraftCachePath(sData.cache_path || '');
+                if (typeof sData.has_bridge_assets === 'boolean') {
+                  setHasBridgeAssets(sData.has_bridge_assets);
+                }
+              }
+            })
+            .catch((err) => console.error('Error loading settings from Python:', err));
+
           fetch('http://127.0.0.1:8000/api/assets')
             .then((res) => res.json())
             .then((assetsData) => {
@@ -214,12 +239,19 @@ export default function App() {
                 setAssets(mappedAssets);
                 console.log('Successfully synchronized library from Python SQLite backend!', mappedAssets.length);
               }
+              setIsLoading(false);
             })
-            .catch((err) => console.error('Error fetching assets from Python:', err));
+            .catch((err) => {
+              console.error('Error fetching assets from Python:', err);
+              setIsLoading(false);
+            });
+        } else {
+          setIsLoading(false);
         }
       })
       .catch(() => {
         // Fall back silently to simulated local storage database if local FastAPI is not running
+        setIsLoading(false);
       });
   }, []);
 
@@ -295,17 +327,57 @@ export default function App() {
     }
   };
 
-  const handleToggleZip = (id: string) => {
-    setAssets((prev) =>
-      prev.map((asset) => {
-        if (asset.id === id) {
-          const updatedZip = !asset.isZipped;
-          notify(updatedZip ? `Zipped asset payload` : `Unzipped asset payload`);
-          return { ...asset, isZipped: updatedZip };
+  const handleToggleZip = async (id: string) => {
+    const asset = assets.find((a) => a.id === id);
+    if (!asset) return;
+
+    const action = asset.isZipped ? 'unzip' : 'zip';
+    
+    try {
+      const statusRes = await fetch('http://127.0.0.1:8000/api/status').catch(() => null);
+      const isRunning = statusRes && statusRes.ok && (await statusRes.json()).status === 'running';
+
+      if (isRunning) {
+        const res = await fetch(`http://127.0.0.1:8000/api/assets/${id}/zip`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action })
+        });
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({ detail: 'Failed to process on backend' }));
+          throw new Error(errData.detail || 'Failed on backend');
         }
-        return asset;
-      })
-    );
+        const data = await res.json();
+        
+        setAssets((prev) =>
+          prev.map((a) => {
+            if (a.id === id) {
+              return { 
+                ...a, 
+                isZipped: action === 'zip',
+                thumbnailUrl: data.thumbnail || a.thumbnailUrl
+              };
+            }
+            return a;
+          })
+        );
+        notify(action === 'zip' ? `Compressed asset payload & cached preview thumbnail` : `Decompressed asset payload back to local disk folder`);
+      } else {
+        // Fallback simulation
+        setAssets((prev) =>
+          prev.map((a) => {
+            if (a.id === id) {
+              return { ...a, isZipped: action === 'zip' };
+            }
+            return a;
+          })
+        );
+        notify(action === 'zip' ? `[Simulated] Compressed asset payload` : `[Simulated] Decompressed asset payload`);
+      }
+    } catch (e: any) {
+      console.error('Zip toggle failed:', e);
+      notify(`Operation failed: ${e.message || e}`);
+    }
   };
 
   const handleUpdateAssetCategories = (id: string, categoryIds: string[]) => {
@@ -520,20 +592,56 @@ export default function App() {
     }, 300);
   };
 
-  const handleBatchZipActionConfirm = () => {
+  const handleBatchZipActionConfirm = async () => {
     if (!batchZipPopupAction) return;
     
     const action = batchZipPopupAction;
-    setAssets((prev) =>
-      prev.map((asset) => {
-        if (selectedAssetIds.includes(asset.id)) {
-          return { ...asset, isZipped: action === 'zip' };
-        }
-        return asset;
-      })
-    );
     
-    notify(action === 'zip' ? `Compressed payloads for ${selectedAssetIds.length} assets` : `Decompressed payloads for ${selectedAssetIds.length} assets`);
+    try {
+      const statusRes = await fetch('http://127.0.0.1:8000/api/status').catch(() => null);
+      const isRunning = statusRes && statusRes.ok && (await statusRes.json()).status === 'running';
+
+      if (isRunning) {
+        notify(`Processing batch ${action === 'zip' ? 'compression' : 'decompression'} on server backend...`);
+        const res = await fetch('http://127.0.0.1:8000/api/assets/batch-zip', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ asset_ids: selectedAssetIds, action })
+        });
+        if (!res.ok) {
+          throw new Error('Batch operation failed on server');
+        }
+        
+        // Refresh catalog from database
+        const assetsRes = await fetch('http://127.0.0.1:8000/api/assets');
+        if (assetsRes.ok) {
+          const assetsData = await assetsRes.json();
+          if (assetsData.assets) {
+            const mappedAssets = assetsData.assets.map((a: any) => ({
+              ...a,
+              categories: mapCategoryPathToIds(a.categoryPaths || [])
+            }));
+            setAssets(mappedAssets);
+          }
+        }
+        notify(action === 'zip' ? `Compressed payloads for ${selectedAssetIds.length} assets` : `Decompressed payloads for ${selectedAssetIds.length} assets`);
+      } else {
+        // Fallback simulation
+        setAssets((prev) =>
+          prev.map((asset) => {
+            if (selectedAssetIds.includes(asset.id)) {
+              return { ...asset, isZipped: action === 'zip' };
+            }
+            return asset;
+          })
+        );
+        notify(action === 'zip' ? `[Simulated] Compressed payloads for ${selectedAssetIds.length} assets` : `[Simulated] Decompressed payloads for ${selectedAssetIds.length} assets`);
+      }
+    } catch (e: any) {
+      console.error('Batch Zip failed:', e);
+      notify(`Batch operation failed: ${e.message || e}`);
+    }
+    
     setBatchZipPopupAction(null);
   };
 
@@ -691,6 +799,7 @@ export default function App() {
             activeCategoryName={activeCategoryName}
             onToggleFavorite={handleToggleFavorite}
             columns={homePageColumns}
+            isLoading={isLoading}
           />
         </main>
 
@@ -1084,7 +1193,8 @@ export default function App() {
         {showSettingsModal && (() => {
           const isPersonalizationDirty = draftHomePageColumns !== homePageColumns;
           const isCategoriesDirty = JSON.stringify(categories) !== JSON.stringify(draftCategoriesList);
-          const isSettingsDirty = isPersonalizationDirty || isCategoriesDirty;
+          const isStorageDirty = draftAppDataPath !== appDataPath || draftCachePath !== cachePath;
+          const isSettingsDirty = isPersonalizationDirty || isCategoriesDirty || isStorageDirty;
           
           const findCategoryByPath = (list: any[], path: string[]): any => {
             if (path.length === 0) return null;
@@ -1255,6 +1365,20 @@ export default function App() {
                     >
                       <Box className="w-3.5 h-3.5" />
                       <span className="flex-1 truncate">Bridge</span>
+                    </button>
+                    <button
+                      onClick={() => setActiveSettingsTab('storage')}
+                      className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs text-left transition-colors cursor-pointer ${
+                        activeSettingsTab === 'storage'
+                          ? 'bg-blue-600/10 border border-blue-500/20 text-blue-400 font-bold'
+                          : 'border border-transparent text-gray-400 hover:text-white hover:bg-white/5'
+                      }`}
+                    >
+                      <FolderArchive className="w-3.5 h-3.5" />
+                      <span className="flex-1 truncate">Storage & Cache</span>
+                      {isStorageDirty && (
+                        <span className="text-red-500 font-bold text-[10px] leading-none select-none">*</span>
+                      )}
                     </button>
                   </div>
 
@@ -1618,6 +1742,43 @@ export default function App() {
                       </div>
                     )}
 
+                    {activeSettingsTab === 'storage' && (
+                      <div className="flex flex-col h-full gap-4">
+                        <div className="mb-2">
+                           <h4 className="text-xs font-bold text-white uppercase tracking-wider mb-2">Storage & Cache Settings</h4>
+                           <p className="text-gray-400 text-[11px] leading-relaxed">
+                             Customize where your SQLite library database and compressed preview thumbnails cache are stored. Relocating directories will migrate your library database automatically.
+                           </p>
+                        </div>
+                        
+                        <div className="flex flex-col gap-4 bg-white/5 border border-white/10 p-5 rounded-xl text-xs">
+                          <div className="flex flex-col gap-1.5">
+                            <label className="text-gray-300 font-bold">App Data Directory (SQLite library DB):</label>
+                            <input
+                              type="text"
+                              value={draftAppDataPath}
+                              onChange={(e) => setDraftAppDataPath(e.target.value)}
+                              placeholder="e.g. /home/user/.megascan_data"
+                              className="bg-[#121214] border border-white/10 rounded px-3 py-2 text-white placeholder-gray-600 outline-none focus:border-blue-500/50 transition-all font-mono w-full"
+                            />
+                            <p className="text-[10px] text-gray-500 italic">Current path on server: {appDataPath || './.megascan_data'}</p>
+                          </div>
+
+                          <div className="flex flex-col gap-1.5">
+                            <label className="text-gray-300 font-bold">Zip Preview Thumbnails Cache Directory:</label>
+                            <input
+                              type="text"
+                              value={draftCachePath}
+                              onChange={(e) => setDraftCachePath(e.target.value)}
+                              placeholder="e.g. /home/user/.megascan_cache"
+                              className="bg-[#121214] border border-white/10 rounded px-3 py-2 text-white placeholder-gray-600 outline-none focus:border-blue-500/50 transition-all font-mono w-full"
+                            />
+                            <p className="text-[10px] text-gray-500 italic">Current path on server: {cachePath || './.megascan_cache'}</p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
                     {/* Footer (Only visible if settings are dirty) */}
                     {isSettingsDirty && (
                       <div className="flex items-center justify-end gap-2 border-t border-white/5 pt-4 mt-4">
@@ -1632,11 +1793,51 @@ export default function App() {
                           Cancel
                         </button>
                         <button
-                          onClick={() => {
+                          onClick={async () => {
                             setHomePageColumns(draftHomePageColumns);
                             setCategories(draftCategoriesList);
+                            
+                            if (isStorageDirty) {
+                              try {
+                                const res = await fetch('http://127.0.0.1:8000/api/settings', {
+                                  method: 'POST',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({
+                                    app_data_path: draftAppDataPath,
+                                    cache_path: draftCachePath,
+                                    has_bridge_assets: hasBridgeAssets
+                                  })
+                                });
+                                if (res.ok) {
+                                  const data = await res.json();
+                                  setAppDataPath(draftAppDataPath);
+                                  setCachePath(draftCachePath);
+                                  
+                                  // Refresh the assets from the newly relocated SQLite database
+                                  const assetsRes = await fetch('http://127.0.0.1:8000/api/assets');
+                                  if (assetsRes.ok) {
+                                    const assetsData = await assetsRes.json();
+                                    if (assetsData.assets) {
+                                      const mappedAssets = assetsData.assets.map((a: any) => ({
+                                        ...a,
+                                        categories: mapCategoryPathToIds(a.categoryPaths || [])
+                                      }));
+                                      setAssets(mappedAssets);
+                                    }
+                                  }
+                                  notify("Storage configuration updated and library successfully synchronized!");
+                                } else {
+                                  throw new Error("Failed to save settings on Python backend");
+                                }
+                              } catch (err: any) {
+                                console.error('Failed to update storage paths:', err);
+                                notify(`Failed to save storage paths: ${err.message || err}`);
+                              }
+                            } else {
+                              notify("Preferences and categories updated successfully!");
+                            }
+                            
                             setShowSettingsModal(false);
-                            notify("Preferences and categories updated successfully!");
                           }}
                           className={`px-4 py-1.5 rounded-lg text-xs font-bold text-white transition-all cursor-pointer ${
                             isSettingsVibrating ? 'animate-shake' : ''

@@ -33,6 +33,8 @@ export default function DirectoryScanner({ libraryAssets, evictedAssetPaths = []
   const [scanComplete, setScanComplete] = useState(false);
   const [realScanError, setRealScanError] = useState<string | null>(null);
   const [usePythonBackend, setUsePythonBackend] = useState(false);
+  const [browserFiles, setBrowserFiles] = useState<FileList | null>(null);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   // Check if Python FastAPI server is active
   useEffect(() => {
@@ -180,7 +182,11 @@ export default function DirectoryScanner({ libraryAssets, evictedAssetPaths = []
         setIsScanning(false);
       }
     } else {
-      await handleSimulatedScan();
+      if (browserFiles && browserFiles.length > 0) {
+        await executeRealFolderScan(browserFiles);
+      } else {
+        await handleSimulatedScan();
+      }
     }
   };
 
@@ -193,11 +199,26 @@ export default function DirectoryScanner({ libraryAssets, evictedAssetPaths = []
     }
   };
 
-  // HTML5 Webkit Directory Upload Handler
-  const handleRealFolderSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const onBrowserFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
+    // Extract root folder name
+    const firstFile = files[0];
+    if (firstFile) {
+      const parts = firstFile.webkitRelativePath.split('/');
+      const rootFolder = parts[0] || 'Megascans';
+      setScanPath(`/Users/user/Downloads/${rootFolder}`);
+    }
+
+    setBrowserFiles(files);
+    setScanComplete(false);
+    setRealScanError(null);
+    setScanLogs([`Loaded directory successfully via browser file explorer.`, `Ready to scan local assets in directory.`]);
+  };
+
+  // HTML5 Webkit Directory Upload Parser
+  const executeRealFolderScan = async (files: FileList) => {
     setIsScanning(true);
     setScanComplete(false);
     setRealScanError(null);
@@ -666,7 +687,7 @@ export default function DirectoryScanner({ libraryAssets, evictedAssetPaths = []
             <p className="text-gray-500 text-[11px] mt-0.5">Scan a directory to automatically find and index downloaded Megascans.</p>
           </div>
         </div>
-        <div className="flex gap-2">
+         <div className="flex gap-2">
           {/* Hybrid Native/Web Folder Select */}
           <button
             type="button"
@@ -686,18 +707,28 @@ export default function DirectoryScanner({ libraryAssets, evictedAssetPaths = []
                   console.error('Tauri folder picker error:', e);
                 }
               } else {
-                const customPath = prompt("Enter local Megascans folder absolute path:", scanPath);
-                if (customPath) {
-                  setScanPath(customPath);
-                }
+                fileInputRef.current?.click();
               }
             }}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 bg-white/5 hover:bg-white/10 text-white border border-white/5 rounded text-xs font-semibold cursor-pointer transition-all"
+            className="flex items-center gap-1.5 px-2.5 py-1.5 bg-white/5 hover:bg-white/10 text-white border border-white/5 rounded text-xs font-semibold cursor-pointer transition-all animate-none"
             id="real-folder-picker"
           >
             <FolderOpen className="w-3.5 h-3.5 text-blue-400" />
             <span>Select Folder</span>
           </button>
+          
+          <input
+            type="file"
+            {...({
+              webkitdirectory: "",
+              directory: ""
+            } as any)}
+            multiple
+            ref={fileInputRef}
+            onChange={onBrowserFileChange}
+            className="hidden"
+            id="browser-folder-select-input"
+          />
         </div>
       </div>
 
@@ -767,9 +798,19 @@ export default function DirectoryScanner({ libraryAssets, evictedAssetPaths = []
               </div>
             )}
             
-            <div className="flex items-start gap-2 text-[9px] text-gray-500 bg-[#161616]/30 p-2 rounded border border-white/5">
-              <Info className="w-3 h-3 text-blue-400 shrink-0 mt-0.5" />
-              <p>The scanner parses folder metadata, searching for mesh geometries and high-definition texture layers to classify and group assets instantaneously.</p>
+            <div className="flex flex-col gap-1 text-[9px] text-gray-400 bg-[#161616]/40 p-2.5 rounded border border-white/5">
+              <div className="flex items-center gap-1.5 font-semibold text-gray-300">
+                <Info className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+                <span>Megascans Folder Structure Guide</span>
+              </div>
+              <p className="mt-1 text-gray-500">
+                Choose the main/parent folder where your individual Megascan assets are stored. Inside that chosen directory, each subdirectory represents a single asset containing:
+              </p>
+              <ul className="list-disc pl-3.5 mt-1 space-y-1 text-[9px] text-gray-500 font-mono">
+                <li>A <span className="text-gray-350 font-semibold">JSON metadata file</span> (e.g., <code className="text-blue-300">asset_name.json</code>)</li>
+                <li>Loose texture layers (<span className="text-gray-350 font-semibold">_Albedo</span>, <span className="text-gray-350 font-semibold">_Normal</span>, etc.) and meshes (<span className="text-gray-350 font-semibold">.fbx/.obj</span>)</li>
+                <li>Previews/thumbnails (under <span className="text-gray-350 font-semibold">Preview/</span>, <span className="text-gray-350 font-semibold">Thumbs/</span>, or root)</li>
+              </ul>
             </div>
           </div>
         </div>
