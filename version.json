@@ -1,0 +1,19 @@
+{
+  "version": "2.1.0",
+  "releaseDate": "2026-06-27",
+  "url": "https://github.com/bvermaak2008/megascans-organizer/releases/download/v2.1.0/MegascansOrganizer.exe",
+  "whatsNew": [
+    "Added persistent local storage using IndexedDB so uploaded and scanned assets are saved automatically and never lost on app restart!",
+    "Added Shift-click range selection! Select one asset, hold Shift, and click another to select all assets in between.",
+    "Added interactive update checker in Settings to check, download, or simulate software updates."
+  ],
+  "improvements": [
+    "Immediate dismissal of the floating batch actions bar when items are deleted.",
+    "Enhanced IndexedDB/localStorage sync performance.",
+    "Polished user interface with custom indicators."
+  ],
+  "fixes": [
+    "Fixed an issue where the batch actions bar remained visible after deleting selected assets.",
+    "Fixed file size calculation formatting in the floating status indicator."
+  ]
+}

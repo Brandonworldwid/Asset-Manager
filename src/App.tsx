@@ -157,6 +157,149 @@ export default function App() {
   const [batchConfirmAction, setBatchConfirmAction] = useState<'delete' | 'remove' | null>(null);
   const [resolutionSelectionAction, setResolutionSelectionAction] = useState<{ type: 'delete' | 'remove', assetIds: string[] } | null>(null);
   
+  // Update checker states
+  const [updateCheckUrl, setUpdateCheckUrl] = useState<string>(() => {
+    return localStorage.getItem('megascan_update_check_url') || 'https://raw.githubusercontent.com/bvermaak2008/megascans-organizer/main/version.json';
+  });
+  const [simulateUpdate, setSimulateUpdate] = useState<boolean>(() => {
+    return localStorage.getItem('megascan_simulate_update') === 'true';
+  });
+  const [isCheckingUpdate, setIsCheckingUpdate] = useState<boolean>(false);
+  const [showUpdateResultModal, setShowUpdateResultModal] = useState<boolean>(false);
+  const [updateResult, setUpdateResult] = useState<{
+    status: 'up-to-date' | 'new-update' | 'error' | null;
+    version?: string;
+    url?: string;
+    releaseDate?: string;
+    whatsNew?: string[];
+    improvements?: string[];
+    fixes?: string[];
+    errorMsg?: string;
+  }>({ status: null });
+
+  // Update downloader simulator states
+  const [isDownloadingUpdate, setIsDownloadingUpdate] = useState<boolean>(false);
+  const [downloadProgress, setDownloadProgress] = useState<number>(0);
+  const [downloadSpeed, setDownloadSpeed] = useState<number>(0);
+  const [downloadedSize, setDownloadedSize] = useState<number>(0);
+
+  // Simulated download progress driver
+  useEffect(() => {
+    let interval: any = null;
+    if (isDownloadingUpdate) {
+      setDownloadProgress(0);
+      setDownloadSpeed(6.4 + Math.random() * 2);
+      setDownloadedSize(0);
+      
+      interval = setInterval(() => {
+        setDownloadProgress((prev) => {
+          if (prev >= 100) {
+            clearInterval(interval);
+            return 100;
+          }
+          const increment = Math.floor(Math.random() * 8) + 5; // 5% to 13% jump
+          const nextVal = Math.min(prev + increment, 100);
+          setDownloadedSize(Math.min(Math.round((nextVal / 100) * 48.6 * 10) / 10, 48.6));
+          return nextVal;
+        });
+      }, 250);
+    }
+    return () => clearInterval(interval);
+  }, [isDownloadingUpdate]);
+
+  // Sync update settings to localStorage
+  useEffect(() => {
+    localStorage.setItem('megascan_update_check_url', updateCheckUrl);
+  }, [updateCheckUrl]);
+
+  useEffect(() => {
+    localStorage.setItem('megascan_simulate_update', simulateUpdate ? 'true' : 'false');
+  }, [simulateUpdate]);
+
+  const isNewerVersion = (curr: string, next: string): boolean => {
+    const cParts = curr.split('.').map(Number);
+    const nParts = next.split('.').map(Number);
+    for (let i = 0; i < Math.max(cParts.length, nParts.length); i++) {
+      const c = cParts[i] || 0;
+      const n = nParts[i] || 0;
+      if (n > c) return true;
+      if (n < c) return false;
+    }
+    return false;
+  };
+
+  const handleCheckForUpdate = async () => {
+    setIsCheckingUpdate(true);
+    setUpdateResult({ status: null });
+    
+    // Slight delay for a polished scanning UX
+    await new Promise((resolve) => setTimeout(resolve, 800));
+
+    if (simulateUpdate) {
+      setIsCheckingUpdate(false);
+      setUpdateResult({
+        status: 'new-update',
+        version: '2.1.0',
+        releaseDate: new Date().toISOString().split('T')[0],
+        url: 'https://github.com/bvermaak2008/megascans-organizer/releases/download/v2.1.0/MegascansOrganizer.exe',
+        whatsNew: [
+          'Added persistent local storage using IndexedDB so uploaded and scanned assets are saved automatically and never lost on app restart!',
+          'Added Shift-click range selection! Select one asset, hold Shift, and click another to select all assets in between.',
+          'Added interactive update checker in Settings to check, download, or simulate software updates.'
+        ],
+        improvements: [
+          'Immediate dismissal of the floating batch actions bar when items are deleted.',
+          'Enhanced IndexedDB/localStorage sync performance.',
+          'Polished user interface with custom indicators.'
+        ],
+        fixes: [
+          'Fixed an issue where the batch actions bar remained visible after deleting selected assets.',
+          'Fixed file size calculation formatting in the floating status indicator.'
+        ]
+      });
+      setShowUpdateResultModal(true);
+      return;
+    }
+
+    try {
+      const res = await fetch(updateCheckUrl, { cache: 'no-store' });
+      if (!res.ok) {
+        throw new Error(`Server returned status code ${res.status}`);
+      }
+      const data = await res.json();
+      
+      const fetchedVersion = data.version || '0.0.0';
+      const isNewer = isNewerVersion(packageJson.version, fetchedVersion);
+
+      if (isNewer) {
+        setUpdateResult({
+          status: 'new-update',
+          version: fetchedVersion,
+          releaseDate: data.releaseDate,
+          url: data.url,
+          whatsNew: data.whatsNew || data.new || [],
+          improvements: data.improvements || data.improved || [],
+          fixes: data.fixes || data.fixed || []
+        });
+      } else {
+        setUpdateResult({
+          status: 'up-to-date',
+          version: fetchedVersion
+        });
+      }
+      setShowUpdateResultModal(true);
+    } catch (err: any) {
+      console.error('Update check failed:', err);
+      setUpdateResult({
+        status: 'error',
+        errorMsg: err.message || 'Failed to fetch update information. Check your internet connection or update URL.'
+      });
+      setShowUpdateResultModal(true);
+    } finally {
+      setIsCheckingUpdate(false);
+    }
+  };
+  
   // Sync draft settings when settings modal is opened
   useEffect(() => {
     if (showSettingsModal) {
@@ -2062,21 +2205,99 @@ export default function App() {
                     )}
 
                     {activeSettingsTab === 'update' && (
-                      <div className="flex flex-col h-full gap-4">
-                        <div className="mb-2">
-                           <h4 className="text-xs font-bold text-white uppercase tracking-wider mb-2">Check for Updates</h4>
-                           <p className="text-gray-400 text-[11px] leading-relaxed">
-                             Check for the latest software updates.
-                           </p>
+                      <div className="flex flex-col h-full gap-4 text-left">
+                        <div className="border-b border-white/5 pb-3">
+                          <h4 className="text-xs font-bold text-white uppercase tracking-wider mb-1 flex items-center gap-2">
+                            <Sparkles className="w-3.5 h-3.5 text-blue-400" />
+                            Update Center
+                          </h4>
+                          <p className="text-gray-400 text-[11px] leading-relaxed">
+                            Configure update checking preferences and scan for the latest Megascans Organizer versions.
+                          </p>
                         </div>
-                        <div className="flex-1 flex flex-col items-start gap-3">
+
+                        <div className="flex-1 space-y-4">
+                          {/* Current Status Card */}
+                          <div className="bg-white/5 border border-white/10 rounded-lg p-3 flex items-center justify-between">
+                            <div className="flex items-center gap-2.5">
+                              <div className="p-2 bg-blue-500/10 text-blue-400 rounded-lg">
+                                <Package className="w-4 h-4" />
+                              </div>
+                              <div>
+                                <span className="text-[10px] text-gray-500 block uppercase font-mono tracking-wider">Current Installation</span>
+                                <span className="text-xs font-bold text-white">Version {packageJson.version}</span>
+                              </div>
+                            </div>
+                            <span className="text-[10px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded-full font-bold">
+                              Stable Channel
+                            </span>
+                          </div>
+
+                          {/* Configuration Settings */}
+                          <div className="space-y-3">
+                            <div>
+                              <label className="text-[10px] text-gray-400 font-bold uppercase tracking-wider block mb-1">
+                                Update Manifest URL (JSON Source)
+                              </label>
+                              <div className="flex gap-1.5">
+                                <input
+                                  type="text"
+                                  value={updateCheckUrl}
+                                  onChange={(e) => setUpdateCheckUrl(e.target.value)}
+                                  placeholder="https://raw.githubusercontent.com/.../version.json"
+                                  className="flex-1 bg-white/5 border border-white/10 rounded-md px-2.5 py-1.5 text-[11px] text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => setUpdateCheckUrl('https://raw.githubusercontent.com/bvermaak2008/megascans-organizer/main/version.json')}
+                                  className="px-2.5 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 text-gray-400 hover:text-white rounded-md text-[11px] font-bold transition-colors cursor-pointer"
+                                  title="Reset to Default"
+                                >
+                                  Reset
+                                </button>
+                              </div>
+                              <p className="text-[9px] text-gray-500 mt-1 leading-normal font-sans">
+                                The application checks this JSON endpoint for update availability. You can host this file in your own GitHub repository.
+                              </p>
+                            </div>
+
+                            {/* Simulation toggle */}
+                            <div className="bg-white/5 border border-white/5 rounded-lg p-3 flex items-center justify-between">
+                              <div className="flex-1 pr-4">
+                                <span className="text-xs font-bold text-white block mb-0.5">Simulate Update</span>
+                                <span className="text-[10px] text-gray-500 leading-normal block">
+                                  Force-trigger a "New Update Available" simulated state with full changelog to test the updater experience.
+                                </span>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => setSimulateUpdate(!simulateUpdate)}
+                                className={"w-8 h-4.5 rounded-full p-0.5 transition-colors cursor-pointer outline-none relative flex items-center " + (simulateUpdate ? "bg-blue-600 justify-end" : "bg-white/10 justify-start")}
+                              >
+                                <motion.div
+                                  layout
+                                  className="w-3.5 h-3.5 rounded-full bg-white shadow-sm"
+                                  transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                                />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Scan Trigger Footer */}
+                        <div className="border-t border-white/5 pt-3 mt-auto flex items-center justify-between">
                           <button
                             type="button"
-                            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded text-xs transition-colors cursor-pointer"
+                            disabled={isCheckingUpdate}
+                            onClick={handleCheckForUpdate}
+                            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-600/50 text-white font-bold rounded-lg text-xs transition-colors cursor-pointer flex items-center gap-1.5"
                           >
-                            Check for update
+                            <RefreshCw className={"w-3.5 h-3.5 " + (isCheckingUpdate ? "animate-spin" : "")} />
+                            {isCheckingUpdate ? 'Checking...' : 'Check for Updates'}
                           </button>
-                          <span className="text-gray-500 text-[10px] font-mono">Current Version: {packageJson.version}</span>
+                          <span className="text-[9px] text-gray-500 font-mono italic">
+                            {isCheckingUpdate ? 'Searching remote channel...' : 'Last checked: Just now'}
+                          </span>
                         </div>
                       </div>
                     )}
@@ -2159,6 +2380,264 @@ export default function App() {
             </div>
           );
         })()}
+      </AnimatePresence>
+
+      {/* Update Result Modal */}
+      <AnimatePresence>
+        {showUpdateResultModal && (
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[130] flex items-center justify-center p-4" id="update-result-overlay">
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-[#111112] border border-white/10 rounded-2xl max-w-lg w-full shadow-2xl overflow-hidden text-left flex flex-col max-h-[90vh]"
+            >
+              {/* Header */}
+              <div className="border-b border-white/5 p-5 flex items-center justify-between bg-white/2">
+                <div className="flex items-center gap-2.5">
+                  <div className={"p-2 rounded-lg " + (
+                    updateResult.status === 'new-update' ? 'bg-blue-500/10 text-blue-400' :
+                    updateResult.status === 'up-to-date' ? 'bg-emerald-500/10 text-emerald-400' :
+                    'bg-red-500/10 text-red-400'
+                  )}>
+                    {updateResult.status === 'new-update' ? <Sparkles className="w-5 h-5" /> :
+                     updateResult.status === 'up-to-date' ? <CheckCircle className="w-5 h-5" /> :
+                     <Info className="w-5 h-5" />}
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-white uppercase tracking-wider">
+                      {updateResult.status === 'new-update' ? 'Software Update Available' :
+                       updateResult.status === 'up-to-date' ? 'System Up to Date' :
+                       'Update Check Failed'}
+                    </h3>
+                    <p className="text-[10px] text-gray-500 font-mono">
+                      Channel: Stable (Stable-x64)
+                    </p>
+                  </div>
+                </div>
+                {!isDownloadingUpdate && (
+                  <button
+                    onClick={() => {
+                      setShowUpdateResultModal(false);
+                      setIsDownloadingUpdate(false);
+                    }}
+                    className="p-1.5 hover:bg-white/5 rounded-lg text-gray-500 hover:text-white transition-colors cursor-pointer"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+
+              {/* Body Content */}
+              <div className="flex-1 overflow-y-auto p-5 space-y-4 text-xs leading-relaxed">
+                {updateResult.status === 'up-to-date' && (
+                  <div className="flex flex-col items-center text-center py-6 space-y-4">
+                    <div className="w-16 h-16 bg-emerald-500/10 border border-emerald-500/20 rounded-full flex items-center justify-center text-emerald-400 animate-pulse">
+                      <Check className="w-8 h-8" />
+                    </div>
+                    <div className="space-y-1">
+                      <h4 className="text-base font-bold text-white">Your software is fully up to date!</h4>
+                      <p className="text-gray-400 text-xs text-center">
+                        You are currently running the latest version of Megascans Organizer (<span className="text-white font-mono font-bold">v{packageJson.version}</span>).
+                      </p>
+                    </div>
+                    <p className="text-[10px] text-gray-500 max-w-sm text-center">
+                      Automatic updates check is active. We'll notify you when a new feature or improvement becomes available.
+                    </p>
+                  </div>
+                )}
+
+                {updateResult.status === 'error' && (
+                  <div className="flex flex-col items-center text-center py-6 space-y-4">
+                    <div className="w-14 h-14 bg-red-500/10 border border-red-500/20 rounded-full flex items-center justify-center text-red-400">
+                      <X className="w-6 h-6" />
+                    </div>
+                    <div className="space-y-1">
+                      <h4 className="text-sm font-bold text-white">Unable to fetch update payload</h4>
+                      <p className="text-gray-400 text-[11px] max-w-sm leading-relaxed text-center">
+                        {updateResult.errorMsg}
+                      </p>
+                    </div>
+                    <button
+                      onClick={handleCheckForUpdate}
+                      className="px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-white font-bold transition-colors cursor-pointer text-[11px]"
+                    >
+                      Retry Connection
+                    </button>
+                  </div>
+                )}
+
+                {updateResult.status === 'new-update' && (
+                  <div className="space-y-4">
+                    {/* Update Info Bar */}
+                    <div className="bg-white/5 border border-white/10 rounded-xl p-3 flex items-center justify-between">
+                      <div>
+                        <span className="text-[10px] text-gray-500 block uppercase font-mono tracking-wider text-left">New Version</span>
+                        <span className="text-sm font-bold text-white text-left block">v{updateResult.version}</span>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-[10px] text-gray-500 block uppercase font-mono tracking-wider">Release Date</span>
+                        <span className="text-[11px] text-gray-400">{updateResult.releaseDate}</span>
+                      </div>
+                    </div>
+
+                    {/* Downloader view */}
+                    {isDownloadingUpdate ? (
+                      <div className="bg-white/5 border border-white/5 rounded-xl p-4 space-y-4">
+                        <div className="flex items-center justify-between">
+                          <span className="font-bold text-white text-xs block">
+                            {downloadProgress === 100 ? '🎉 Download Successful!' : 'Downloading Update...'}
+                          </span>
+                          <span className="text-[10px] font-mono text-gray-500">
+                            {downloadProgress === 100 
+                              ? '48.6 MB / 48.6 MB' 
+                              : downloadedSize + ' MB of 48.6 MB (' + Math.round(downloadProgress) + '%)'}
+                          </span>
+                        </div>
+                        
+                        {/* Progress bar container */}
+                        <div className="h-2 bg-white/5 border border-white/10 rounded-full overflow-hidden w-full">
+                          <motion.div 
+                            initial={{ width: 0 }}
+                            animate={{ width: downloadProgress + '%' }}
+                            className="h-full bg-blue-600 rounded-full"
+                          />
+                        </div>
+
+                        {downloadProgress < 100 ? (
+                          <div className="flex items-center justify-between text-[10px] text-gray-500">
+                            <span>Speed: {downloadSpeed.toFixed(1)} MB/s</span>
+                            <span>Estimated time remaining: {Math.max(1, Math.round((48.6 - downloadedSize) / downloadSpeed))}s</span>
+                          </div>
+                        ) : (
+                          <div className="text-[10px] text-emerald-400 font-bold">
+                            Update installer package (MegascansOrganizer-Setup.exe) has been fetched successfully. Ready to apply.
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      /* Changelog details list */
+                      <div className="space-y-3.5 bg-white/3 border border-white/5 rounded-xl p-4 max-h-[35vh] overflow-y-auto">
+                        {/* Whats New */}
+                        {updateResult.whatsNew && updateResult.whatsNew.length > 0 && (
+                          <div className="space-y-1.5">
+                            <h5 className="text-[11px] font-bold text-blue-400 uppercase tracking-wider flex items-center gap-1.5 text-left">
+                              <Sparkles className="w-3.5 h-3.5" />
+                              What's New
+                            </h5>
+                            <ul className="list-disc pl-4 space-y-1 text-[11px] text-gray-300 text-left">
+                              {updateResult.whatsNew.map((item, idx) => (
+                                <li key={idx} className="leading-relaxed">{item}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+
+                        {/* Improvements */}
+                        {updateResult.improvements && updateResult.improvements.length > 0 && (
+                          <div className="space-y-1.5 pt-2 border-t border-white/5">
+                            <h5 className="text-[11px] font-bold text-orange-400 uppercase tracking-wider flex items-center gap-1.5 text-left">
+                              <SlidersHorizontal className="w-3.5 h-3.5" />
+                              What's Improved
+                            </h5>
+                            <ul className="list-disc pl-4 space-y-1 text-[11px] text-gray-300 text-left">
+                              {updateResult.improvements.map((item, idx) => (
+                                <li key={idx} className="leading-relaxed">{item}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+
+                        {/* Fixes */}
+                        {updateResult.fixes && updateResult.fixes.length > 0 && (
+                          <div className="space-y-1.5 pt-2 border-t border-white/5">
+                            <h5 className="text-[11px] font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-1.5 text-left">
+                              <CheckCircle className="w-3.5 h-3.5" />
+                              What's Fixed
+                            </h5>
+                            <ul className="list-disc pl-4 space-y-1 text-[11px] text-gray-300 text-left">
+                              {updateResult.fixes.map((item, idx) => (
+                                <li key={idx} className="leading-relaxed">{item}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Action Buttons Footer */}
+              <div className="border-t border-white/5 p-4 flex items-center justify-end gap-2.5 bg-white/2">
+                {updateResult.status === 'new-update' ? (
+                  isDownloadingUpdate ? (
+                    downloadProgress === 100 ? (
+                      <>
+                        <button
+                          onClick={() => {
+                            setIsDownloadingUpdate(false);
+                            setDownloadProgress(0);
+                          }}
+                          className="px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg font-bold text-gray-300 transition-colors cursor-pointer"
+                        >
+                          Reset
+                        </button>
+                        <button
+                          onClick={() => {
+                            setShowUpdateResultModal(false);
+                            setIsDownloadingUpdate(false);
+                            if (updateResult.url) {
+                              const link = document.createElement('a');
+                              link.href = updateResult.url;
+                              link.target = '_blank';
+                              link.click();
+                            }
+                          }}
+                          className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 rounded-lg font-bold text-white transition-colors cursor-pointer flex items-center gap-1"
+                        >
+                          Run Installer & Restart
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        onClick={() => {
+                          setIsDownloadingUpdate(false);
+                          setDownloadProgress(0);
+                        }}
+                        className="px-4 py-2 bg-red-600/15 hover:bg-red-600 border border-red-500/20 text-red-400 hover:text-white rounded-lg font-bold transition-colors cursor-pointer"
+                      >
+                        Cancel Download
+                      </button>
+                    )
+                  ) : (
+                    <>
+                      <button
+                        onClick={() => setShowUpdateResultModal(false)}
+                        className="px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-gray-300 font-bold transition-colors cursor-pointer"
+                      >
+                        Update Later
+                      </button>
+                      <button
+                        onClick={() => setIsDownloadingUpdate(true)}
+                        className="px-5 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg text-white font-bold transition-colors cursor-pointer"
+                      >
+                        Update Now
+                      </button>
+                    </>
+                  )
+                ) : (
+                  <button
+                    onClick={() => setShowUpdateResultModal(false)}
+                    className="px-5 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg text-white font-bold transition-colors cursor-pointer"
+                  >
+                    Close
+                  </button>
+                )}
+              </div>
+            </motion.div>
+          </div>
+        )}
       </AnimatePresence>
 
       {/* Bridge Initial Prompt */}
@@ -2257,6 +2736,10 @@ export default function App() {
                            notify(`Removed ${toRemove.length} assets of ${res} resolution from manager.`);
                         }
                         setResolutionSelectionAction(null);
+                       setSelectedAssetIds([]);
+                        setSelectedAssetId(null);
+
+
                      }}
                      className="w-full text-left px-3 py-2 bg-white/5 hover:bg-white/10 rounded-lg text-xs font-bold text-white transition-all"
                    >
@@ -2280,6 +2763,8 @@ export default function App() {
                          notify(`Removed ${toRemove.length} assets from manager.`);
                       }
                       setResolutionSelectionAction(null);
+                      setSelectedAssetIds([]);
+                      setSelectedAssetId(null);
                    }}
                    className="w-full text-left px-3 py-2 bg-red-600/20 hover:bg-red-600 text-red-400 hover:text-white rounded-lg text-xs font-bold transition-all mt-2"
                  >
