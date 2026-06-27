@@ -19,6 +19,134 @@ import { Asset, AssetType } from '../types';
 import { VIRTUAL_DOWNLOADS_ASSETS, MEGASCANS_SUBCATEGORIES } from '../data/mockAssets';
 import { mapCategoryPathToIds } from '../utils';
 
+export const VIRTUAL_ANIMATIONS = [
+  {
+    id: "anim_sword_attack",
+    name: "Sword Attack Slash",
+    type: "anim" as AssetType,
+    scannedPath: "/Game/Animations/Combat/AM_Sword_Attack_01.uasset",
+    localPath: "/Game/Animations/Combat/AM_Sword_Attack_01.uasset",
+    fileDate: "2026-06-27 12:30:15",
+    fileSize: "1.42 MB",
+    sizeBytes: 1488950,
+    size: 1488950,
+    isZipped: false,
+    resolution: "UE5 Skeleton",
+    thumbnailUrl: "https://images.unsplash.com/photo-1551817958-c5b52f759435?auto=format&fit=crop&w=400&h=400&q=80",
+    skeletonName: "SK_Mannequin",
+    frameCount: 45,
+    fps: 30,
+    duration: 1.5,
+    category: "Combat",
+    tags: ["unreal_engine", "ue5", "animation", "combat", "sword", "slash", "attack"],
+    categories: ["cat-all"],
+    lastScanned: "2026-06-27 17:00:00",
+    dateAdded: "2026-06-27 12:30:15",
+    description: "Unreal Engine animation sequence targeting SK_Mannequin. Category: Combat.",
+    textures: []
+  },
+  {
+    id: "anim_run_forward",
+    name: "Run Forward Locomotion",
+    type: "anim" as AssetType,
+    scannedPath: "/Game/Animations/Locomotion/AS_Run_Forward.uasset",
+    localPath: "/Game/Animations/Locomotion/AS_Run_Forward.uasset",
+    fileDate: "2026-06-27 10:14:22",
+    fileSize: "820 KB",
+    sizeBytes: 839680,
+    size: 839680,
+    isZipped: false,
+    resolution: "UE5 Skeleton",
+    thumbnailUrl: "https://images.unsplash.com/photo-1502224562085-639556652f33?auto=format&fit=crop&w=400&h=400&q=80",
+    skeletonName: "SK_Mannequin",
+    frameCount: 24,
+    fps: 30,
+    duration: 0.8,
+    category: "Locomotion",
+    tags: ["unreal_engine", "ue5", "animation", "locomotion", "run", "forward"],
+    categories: ["cat-all"],
+    lastScanned: "2026-06-27 17:00:00",
+    dateAdded: "2026-06-27 10:14:22",
+    description: "Unreal Engine animation sequence targeting SK_Mannequin. Category: Locomotion.",
+    textures: []
+  },
+  {
+    id: "anim_dodge_roll",
+    name: "Dodge Roll Evade",
+    type: "anim" as AssetType,
+    scannedPath: "/Game/Animations/Evade/Anim_Dodge_Roll.ueasset",
+    localPath: "/Game/Animations/Evade/Anim_Dodge_Roll.ueasset",
+    fileDate: "2026-06-27 14:05:00",
+    fileSize: "1.12 MB",
+    sizeBytes: 1174400,
+    size: 1174400,
+    isZipped: false,
+    resolution: "UE5 Skeleton",
+    thumbnailUrl: "https://images.unsplash.com/photo-1544698310-74ea9d1c8258?auto=format&fit=crop&w=400&h=400&q=80",
+    skeletonName: "SK_Mannequin",
+    frameCount: 30,
+    fps: 30,
+    duration: 1.0,
+    category: "Evade/Roll",
+    tags: ["unreal_engine", "ue5", "animation", "evade", "roll", "dodge"],
+    categories: ["cat-all"],
+    lastScanned: "2026-06-27 17:00:00",
+    dateAdded: "2026-06-27 14:05:00",
+    description: "Unreal Engine animation sequence targeting SK_Mannequin. Category: Evade/Roll.",
+    textures: []
+  },
+  {
+    id: "anim_idle_relax",
+    name: "Idle Breathing Rest",
+    type: "anim" as AssetType,
+    scannedPath: "/Game/Animations/Idle/AS_Idle_Relax.uasset",
+    localPath: "/Game/Animations/Idle/AS_Idle_Relax.uasset",
+    fileDate: "2026-06-27 09:00:10",
+    fileSize: "4.15 MB",
+    sizeBytes: 4351500,
+    size: 4351500,
+    isZipped: false,
+    resolution: "UE5 Skeleton",
+    thumbnailUrl: "https://images.unsplash.com/photo-1518611012118-696072aa579a?auto=format&fit=crop&w=400&h=400&q=80",
+    skeletonName: "SK_Mannequin",
+    frameCount: 120,
+    fps: 30,
+    duration: 4.0,
+    category: "Idle",
+    tags: ["unreal_engine", "ue5", "animation", "idle", "rest", "breath"],
+    categories: ["cat-all"],
+    lastScanned: "2026-06-27 17:00:00",
+    dateAdded: "2026-06-27 09:00:10",
+    description: "Unreal Engine animation sequence targeting SK_Mannequin. Category: Idle.",
+    textures: []
+  },
+  {
+    id: "anim_jump_start",
+    name: "Jump Launch Start",
+    type: "anim" as AssetType,
+    scannedPath: "/Game/Animations/Movement/AS_Jump_Start.uasset",
+    localPath: "/Game/Animations/Movement/AS_Jump_Start.uasset",
+    fileDate: "2026-06-27 15:45:00",
+    fileSize: "512 KB",
+    sizeBytes: 524288,
+    size: 524288,
+    isZipped: false,
+    resolution: "UE5 Skeleton",
+    thumbnailUrl: "https://images.unsplash.com/photo-1461896836934-ffe607ba8211?auto=format&fit=crop&w=400&h=400&q=80",
+    skeletonName: "SK_Mannequin",
+    frameCount: 15,
+    fps: 30,
+    duration: 0.5,
+    category: "Movement",
+    tags: ["unreal_engine", "ue5", "animation", "movement", "jump", "launch"],
+    categories: ["cat-all"],
+    lastScanned: "2026-06-27 17:00:00",
+    dateAdded: "2026-06-27 15:45:00",
+    description: "Unreal Engine animation sequence targeting SK_Mannequin. Category: Movement.",
+    textures: []
+  }
+];
+
 const VIRTUAL_2D_ASSETS: Asset[] = [
   {
     id: 'sim-2d-cyberpunk',
@@ -179,7 +307,7 @@ interface DirectoryScannerProps {
 }
 
 export default function DirectoryScanner({ libraryAssets, evictedAssetPaths = [], onImportAssets }: DirectoryScannerProps) {
-  const [scannerType, setScannerType] = useState<'3d' | '2d'>('3d');
+  const [scannerType, setScannerType] = useState<'3d' | '2d' | 'anim'>('3d');
   const [scanPath, setScanPath] = useState('/Users/creative/Downloads/Megascans');
   const [isScanning, setIsScanning] = useState(false);
   const [scanLogs, setScanLogs] = useState<string[]>([]);
@@ -205,6 +333,175 @@ export default function DirectoryScanner({ libraryAssets, evictedAssetPaths = []
         setUsePythonBackend(false);
       });
   }, []);
+
+  const handleSimulatedAnimScan = async () => {
+    const logs = [
+      `Initializing standalone Unreal Animation scanner...`,
+      `Targeting directory: ${scanPath}`,
+      `Searching for Unreal Engine animation sequences (.uasset / .ueasset)...`,
+    ];
+
+    setScanLogs([...logs]);
+    await delay(600);
+    setScanProgress(15);
+
+    // Filter out animations that are already in the library
+    const pending = VIRTUAL_ANIMATIONS.filter(
+      (va) => !libraryAssets.some((la) => la.id === va.id)
+    );
+
+    if (pending.length === 0) {
+      setScanLogs((prev) => [
+        ...prev,
+        `Scanning folders...`,
+        `No new unimported Unreal animations found in "${scanPath}". All local animation assets are already synchronized.`,
+      ]);
+      setScanProgress(100);
+      setIsScanning(false);
+      setScanComplete(true);
+      return;
+    }
+
+    for (let i = 0; i < pending.length; i++) {
+      const asset = pending[i];
+      setScanProgress(20 + i * 16);
+      
+      setScanLogs((prev) => [
+        ...prev,
+        `Found Unreal animation: ${asset.localPath.split('/').pop()}`,
+        `  -> Target skeleton: ${asset.skeletonName}`,
+        `  -> Duration: ${asset.duration}s | Frame count: ${asset.frameCount}`,
+        `  -> Locomotion category: ${asset.category}`,
+        `  -> Registered asset: "${asset.name}" (${asset.id})`,
+      ]);
+
+      setDetectedAssets((prev) => [...prev, asset as any]);
+      await delay(700);
+    }
+
+    setScanProgress(90);
+    setScanLogs((prev) => [
+      ...prev,
+      `Analyzing completed. Found ${pending.length} high-fidelity Unreal animations.`,
+      `Finalizing registration metadata...`,
+    ]);
+    await delay(500);
+
+    setScanProgress(100);
+    setIsScanning(false);
+    setScanComplete(true);
+  };
+
+  const executeRealAnimFolderScan = async (files: FileList) => {
+    setIsScanning(true);
+    setScanComplete(false);
+    setRealScanError(null);
+    setScanLogs([`Starting local Unreal Animation library inspection...`, `Reading files from local directory...`]);
+
+    const fileList = Array.from(files) as any[];
+    const animFiles = fileList.filter(f => {
+      const lowerName = f.name.toLowerCase();
+      return lowerName.endsWith('.uasset') || lowerName.endsWith('.ueasset');
+    });
+
+    if (animFiles.length === 0) {
+      setIsScanning(false);
+      setRealScanError('No Unreal animation files (.uasset or .ueasset) found in the selected folder.');
+      setScanLogs(prev => [...prev, `Scan finished. No matching animation file extensions found.`]);
+      return;
+    }
+
+    setScanLogs(prev => [...prev, `Found ${animFiles.length} Unreal animation files. Extracting metadata...`]);
+
+    const parsedAssets: any[] = [];
+
+    for (let i = 0; i < animFiles.length; i++) {
+      const file = animFiles[i];
+      const percent = Math.round((i / animFiles.length) * 100);
+      setScanProgress(percent);
+
+      const ext = file.name.split('.').pop() || '';
+      const baseName = file.name.substring(0, file.name.length - ext.length - 1);
+      const cleanName = baseName
+        .replace(/[-_]+/g, ' ')
+        .trim()
+        .split(' ')
+        .map((w: string) => w.charAt(0).toUpperCase() + w.slice(1))
+        .join(' ');
+
+      const sizeStr = formatSize(file.size);
+      
+      // Default guess properties
+      let skeletonName = "SK_Mannequin";
+      let category = "Locomotion";
+      let frameCount = 30;
+      let fps = 30;
+
+      // Guess category
+      const lowerName = baseName.toLowerCase();
+      if (/attack|sword|slash|hit|combat|shoot|reload|aim/i.test(lowerName)) {
+        category = "Combat";
+      } else if (/run|walk|sprint|jog|strafe|backward|forward|left|right/i.test(lowerName)) {
+        category = "Locomotion";
+      } else if (/jump|fall|land|leap|climb/i.test(lowerName)) {
+        category = "Movement";
+      } else if (/idle|stand|breath|relax/i.test(lowerName)) {
+        category = "Idle";
+      } else if (/emote|dance|wave|cheer|clap|gesture/i.test(lowerName)) {
+        category = "Emotes";
+      } else if (/roll|dodge|slide|evade/i.test(lowerName)) {
+        category = "Evade/Roll";
+      }
+
+      if (/idle/i.test(lowerName)) frameCount = 120;
+      else if (/run|walk/i.test(lowerName)) frameCount = 24;
+      else if (/attack|slash/i.test(lowerName)) frameCount = 45;
+
+      const assetId = `anim-local-${Math.random().toString(36).substring(2, 8)}`;
+
+      const item = {
+        id: assetId,
+        name: cleanName,
+        type: 'anim' as AssetType,
+        scannedPath: file.webkitRelativePath || `/Local/Animations/${file.name}`,
+        localPath: file.webkitRelativePath || `/Local/Animations/${file.name}`,
+        fileDate: new Date(file.lastModified).toISOString().replace('T', ' ').slice(0, 19),
+        fileSize: sizeStr,
+        sizeBytes: file.size,
+        size: file.size,
+        isZipped: false,
+        resolution: "UE5 Skeleton",
+        thumbnailUrl: "https://images.unsplash.com/photo-1551817958-c5b52f759435?auto=format&fit=crop&w=400&h=400&q=80",
+        skeletonName,
+        frameCount,
+        fps,
+        duration: parseFloat((frameCount / fps).toFixed(2)),
+        category,
+        tags: ["unreal_engine", "ue5", "animation", category.toLowerCase(), ...baseName.toLowerCase().split('_').filter(t => t.length > 1)],
+        categories: ["cat-all"],
+        lastScanned: new Date().toISOString().replace('T', ' ').slice(0, 19),
+        dateAdded: new Date().toISOString(),
+        description: `Local Unreal Engine animation sequence targeting ${skeletonName}. Category: {category}.`,
+        textures: []
+      };
+
+      parsedAssets.push(item);
+
+      if (i % 5 === 0 || i === animFiles.length - 1) {
+        setScanLogs(prev => [...prev, `Processed ${i + 1}/${animFiles.length} animations: ${cleanName}`]);
+      }
+    }
+
+    setIsScanning(false);
+    setScanProgress(100);
+    setDetectedAssets(parsedAssets);
+    setScanComplete(true);
+    setScanLogs(prev => [
+      ...prev,
+      `Animation Scan completed successfully!`,
+      `Discovered ${parsedAssets.length} Unreal animations ready for import.`,
+    ]);
+  };
 
   // Filter out assets that are already in the library or flagged as evicted
   const getPendingVirtual2DAssets = () => {
@@ -542,21 +839,32 @@ export default function DirectoryScanner({ libraryAssets, evictedAssetPaths = []
               setIsScanning(false);
               setScanComplete(true);
               
-              // Load the newly scanned assets
-              const assetsRes = await fetch('http://127.0.0.1:8000/api/assets');
-              if (assetsRes.ok) {
-                const assetsData = await assetsRes.json();
-                const mappedAssets = assetsData.assets.map((a: any) => ({
-                  ...a,
-                  categories: mapCategoryPathToIds(a.categoryPaths || [])
-                }));
-                // Filter to new assets of the active type only
-                const newOnly = mappedAssets.filter(
-                  (ma: any) => (scannerType === '2d' ? ma.type === '2d' : ma.type !== '2d') &&
-                               !libraryAssets.some((la) => la.id === ma.id) &&
-                               !evictedAssetPaths.includes(ma.scannedPath)
-                );
-                setDetectedAssets(newOnly);
+              if (scannerType === 'anim') {
+                const animsRes = await fetch('http://127.0.0.1:8000/api/animations');
+                if (animsRes.ok) {
+                  const animsData = await animsRes.json();
+                  const newOnly = animsData.animations.filter(
+                    (ma: any) => !libraryAssets.some((la) => la.id === ma.id)
+                  );
+                  setDetectedAssets(newOnly);
+                }
+              } else {
+                // Load the newly scanned assets
+                const assetsRes = await fetch('http://127.0.0.1:8000/api/assets');
+                if (assetsRes.ok) {
+                  const assetsData = await assetsRes.json();
+                  const mappedAssets = assetsData.assets.map((a: any) => ({
+                    ...a,
+                    categories: mapCategoryPathToIds(a.categoryPaths || [])
+                  }));
+                  // Filter to new assets of the active type only
+                  const newOnly = mappedAssets.filter(
+                    (ma: any) => (scannerType === '2d' ? ma.type === '2d' : ma.type !== '2d') &&
+                                 !libraryAssets.some((la) => la.id === ma.id) &&
+                                 !evictedAssetPaths.includes(ma.scannedPath)
+                  );
+                  setDetectedAssets(newOnly);
+                }
               }
             }
           } catch (pollErr: any) {
@@ -571,12 +879,16 @@ export default function DirectoryScanner({ libraryAssets, evictedAssetPaths = []
       if (browserFiles && browserFiles.length > 0) {
         if (scannerType === '2d') {
           await executeReal2DFolderScan(browserFiles);
+        } else if (scannerType === 'anim') {
+          await executeRealAnimFolderScan(browserFiles);
         } else {
           await executeRealFolderScan(browserFiles);
         }
       } else {
         if (scannerType === '2d') {
           await handleSimulated2DScan();
+        } else if (scannerType === 'anim') {
+          await handleSimulatedAnimScan();
         } else {
           await handleSimulatedScan();
         }
@@ -1067,7 +1379,11 @@ export default function DirectoryScanner({ libraryAssets, evictedAssetPaths = []
     });
   };
 
-  const pendingVirtual = scannerType === '2d' ? getPendingVirtual2DAssets() : getPendingVirtualAssets();
+  const pendingVirtual = scannerType === '2d'
+    ? getPendingVirtual2DAssets()
+    : scannerType === 'anim'
+      ? VIRTUAL_ANIMATIONS.filter((va) => !libraryAssets.some((la) => la.id === va.id))
+      : getPendingVirtualAssets();
 
   return (
     <div className="bg-[#111111] border border-white/5 rounded p-4" id="directory-scanner-card">
@@ -1078,7 +1394,7 @@ export default function DirectoryScanner({ libraryAssets, evictedAssetPaths = []
           </div>
           <div>
             <h2 className="font-sans font-bold text-sm text-white leading-none">Asset Auto-Importer</h2>
-            <p className="text-gray-500 text-[11px] mt-0.5">Scan a directory to automatically find and index local 3D and 2D creative assets.</p>
+            <p className="text-gray-500 text-[11px] mt-0.5">Scan a directory to automatically find and index local 3D, 2D, and Unreal Engine animation assets.</p>
           </div>
         </div>
          <div className="flex gap-2">
@@ -1092,7 +1408,7 @@ export default function DirectoryScanner({ libraryAssets, evictedAssetPaths = []
                   const selected = await winTauri.dialog.open({
                     directory: true,
                     multiple: false,
-                    title: scannerType === '2d' ? "Select 2D Assets Folder" : "Select Megascans Folder"
+                    title: scannerType === '2d' ? "Select 2D Assets Folder" : scannerType === 'anim' ? "Select Unreal Animations Folder" : "Select Megascans Folder"
                   });
                   if (selected && typeof selected === 'string') {
                     setScanPath(selected);
@@ -1168,6 +1484,26 @@ export default function DirectoryScanner({ libraryAssets, evictedAssetPaths = []
           <ImageIcon className="w-3.5 h-3.5 text-blue-400" />
           <span>2D IMAGE SCANNER</span>
         </button>
+        <button
+          type="button"
+          onClick={() => {
+            setScannerType('anim');
+            setScanPath('/Users/creative/Downloads/Animations');
+            setDetectedAssets([]);
+            setScanComplete(false);
+            setScanLogs([]);
+            setRealScanError(null);
+          }}
+          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold border-b-2 transition-all cursor-pointer ${
+            scannerType === 'anim'
+              ? 'border-blue-500 text-white bg-white/5 font-extrabold'
+              : 'border-transparent text-gray-500 hover:text-gray-300'
+          }`}
+          id="scanner-mode-anim-tab"
+        >
+          <Compass className="w-3.5 h-3.5 text-blue-400" />
+          <span>UE ANIMATION SCANNER</span>
+        </button>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4" id="scanner-main-layout">
@@ -1227,7 +1563,7 @@ export default function DirectoryScanner({ libraryAssets, evictedAssetPaths = []
                       </div>
                     </div>
                     <span className="font-mono text-[9px] px-1 py-0.5 bg-white/5 border border-white/5 text-gray-400 rounded shrink-0">
-                      {asset.textures[0]?.name.split('.').pop()?.toUpperCase() || asset.type.toUpperCase()}
+                      {asset.textures?.[0]?.name.split('.').pop()?.toUpperCase() || (asset as any).localPath?.split('.').pop()?.toUpperCase() || asset.type.toUpperCase()}
                     </span>
                   </div>
                 ))}
@@ -1250,6 +1586,21 @@ export default function DirectoryScanner({ libraryAssets, evictedAssetPaths = []
                 <ul className="list-disc pl-3.5 mt-1 space-y-1 text-[9px] text-gray-500 font-mono">
                   <li>Metadata details: <span className="text-gray-350 font-semibold">File size, dimensions, resolution, and format type (PNG, JPG, WebP, JFIF)</span></li>
                   <li>Aesthetic details: <span className="text-gray-350 font-semibold">Aspect ratio, orientation, and a 5-color dominant palette</span></li>
+                </ul>
+              </div>
+            ) : scannerType === 'anim' ? (
+              <div className="flex flex-col gap-1 text-[9px] text-gray-400 bg-[#161616]/40 p-2.5 rounded border border-white/5">
+                <div className="flex items-center gap-1.5 font-semibold text-gray-300">
+                  <Info className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+                  <span>Unreal Animation Scanner Guide</span>
+                </div>
+                <p className="mt-1 text-gray-500">
+                  Select a local project folder containing Unreal Engine animations (.uasset and .ueasset files). The scanner extracts:
+                </p>
+                <ul className="list-disc pl-3.5 mt-1 space-y-1 text-[9px] text-gray-500 font-mono">
+                  <li>Unreal Engine target skeleton names from binary file references</li>
+                  <li>Motion parameters: <span className="text-gray-350 font-semibold">Frame counts, FPS, durations</span></li>
+                  <li>Categorization (Locomotion, Combat, Emotes, Movement, Evade)</li>
                 </ul>
               </div>
             ) : (

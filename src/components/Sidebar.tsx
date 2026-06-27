@@ -38,8 +38,8 @@ interface SidebarProps {
   onRenameCategory: (id: string, newName: string) => void;
   onDeleteCategory: (id: string) => void;
   onReorderCategory: (id: string, direction: 'up' | 'down') => void;
-  libraryMode: '3d' | '2d';
-  onLibraryModeChange: (mode: '3d' | '2d') => void;
+  libraryMode: '3d' | '2d' | 'anim';
+  onLibraryModeChange: (mode: '3d' | '2d' | 'anim') => void;
   moodboards: string[];
   onCreateMoodboard: (name: string) => void;
   onDeleteMoodboard: (name: string) => void;
@@ -344,7 +344,7 @@ export default function Sidebar({
         </button>
       </div>
 
-      {/* 3D vs 2D Library Switcher */}
+      {/* 3D vs 2D vs Unreal Animations Library Switcher */}
       <div className="px-3 py-2 border-b border-white/5 bg-[#0F0F0F]/60 shrink-0" id="library-mode-switcher">
         <div className="bg-[#18181B] p-1 rounded-lg flex items-center gap-1 border border-white/5">
           <button
@@ -352,7 +352,7 @@ export default function Sidebar({
               onLibraryModeChange('3d');
               onSelectCategory('cat-all');
             }}
-            className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-md text-[10px] font-bold tracking-tight uppercase transition-all duration-150 cursor-pointer ${
+            className={`flex-1 flex flex-col sm:flex-row items-center justify-center gap-1 py-1.5 rounded-md text-[9px] font-bold tracking-tight uppercase transition-all duration-150 cursor-pointer ${
               libraryMode === '3d'
                 ? 'bg-blue-600 text-white shadow-md font-extrabold shadow-blue-500/15'
                 : 'text-gray-500 hover:text-gray-300'
@@ -360,8 +360,8 @@ export default function Sidebar({
             id="lib-mode-3d-btn"
             type="button"
           >
-            <Box className="w-3.5 h-3.5" />
-            <span>3D Assets</span>
+            <Box className="w-3 h-3 shrink-0" />
+            <span>3D</span>
           </button>
           <button
             onClick={() => {
@@ -369,7 +369,7 @@ export default function Sidebar({
               onSelectCategory('cat-all');
               onSelectColorFilter(null);
             }}
-            className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-md text-[10px] font-bold tracking-tight uppercase transition-all duration-150 cursor-pointer ${
+            className={`flex-1 flex flex-col sm:flex-row items-center justify-center gap-1 py-1.5 rounded-md text-[9px] font-bold tracking-tight uppercase transition-all duration-150 cursor-pointer ${
               libraryMode === '2d'
                 ? 'bg-blue-600 text-white shadow-md font-extrabold shadow-blue-500/15'
                 : 'text-gray-500 hover:text-gray-300'
@@ -377,8 +377,25 @@ export default function Sidebar({
             id="lib-mode-2d-btn"
             type="button"
           >
-            <ImageIcon className="w-3.5 h-3.5" />
-            <span>2D Library</span>
+            <ImageIcon className="w-3 h-3 shrink-0" />
+            <span>2D</span>
+          </button>
+          <button
+            onClick={() => {
+              onLibraryModeChange('anim');
+              onSelectCategory('cat-all');
+              onSelectColorFilter(null);
+            }}
+            className={`flex-1 flex flex-col sm:flex-row items-center justify-center gap-1 py-1.5 rounded-md text-[9px] font-bold tracking-tight uppercase transition-all duration-150 cursor-pointer ${
+              libraryMode === 'anim'
+                ? 'bg-blue-600 text-white shadow-md font-extrabold shadow-blue-500/15'
+                : 'text-gray-500 hover:text-gray-300'
+            }`}
+            id="lib-mode-anim-btn"
+            type="button"
+          >
+            <Compass className="w-3 h-3 shrink-0" />
+            <span>Anims</span>
           </button>
         </div>
       </div>
@@ -609,6 +626,67 @@ export default function Sidebar({
                   </div>
                 );
               })}
+            </div>
+          </div>
+        ) : libraryMode === 'anim' ? (
+          <div className="space-y-5">
+            {/* 1. Unreal Animations Filters */}
+            <div className="space-y-1">
+              <span className="font-sans text-[10px] font-bold text-gray-500 uppercase tracking-widest px-2 block mb-2 font-mono">Unreal Animations</span>
+              
+              <button
+                onClick={() => onSelectCategory('cat-all')}
+                className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-left border transition-all ${
+                  activeCategoryId === 'cat-all'
+                    ? 'bg-blue-600/10 border-blue-500/25 text-blue-400 font-bold'
+                    : 'border-transparent text-gray-400 hover:text-gray-200 hover:bg-white/5'
+                }`}
+                type="button"
+              >
+                <Compass className="w-3.5 h-3.5" />
+                <span>All Animations</span>
+              </button>
+
+              <button
+                onClick={() => onSelectCategory('cat-favorites')}
+                className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-left border transition-all ${
+                  activeCategoryId === 'cat-favorites'
+                    ? 'bg-blue-600/10 border-blue-500/25 text-blue-400 font-bold'
+                    : 'border-transparent text-gray-400 hover:text-gray-200 hover:bg-white/5'
+                }`}
+                type="button"
+              >
+                <Star className="w-3.5 h-3.5 text-yellow-500" />
+                <span>Favorites</span>
+              </button>
+            </div>
+
+            {/* 2. Motion Categories */}
+            <div className="space-y-1">
+              <span className="font-sans text-[10px] font-bold text-gray-500 uppercase tracking-widest px-2 block mb-2 font-mono">Motion Category</span>
+              
+              {[
+                { label: 'Locomotion', value: 'cat-anim-locomotion' },
+                { label: 'Combat', value: 'cat-anim-combat' },
+                { label: 'Movement', value: 'cat-anim-movement' },
+                { label: 'Idle', value: 'cat-anim-idle' },
+                { label: 'Emotes', value: 'cat-anim-emotes' },
+                { label: 'Evade/Roll', value: 'cat-anim-evade' }
+              ].map((animCat) => (
+                <button
+                  key={animCat.value}
+                  onClick={() => onSelectCategory(animCat.value)}
+                  className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-left border transition-all ${
+                    activeCategoryId === animCat.value
+                      ? 'bg-blue-600/10 border-blue-500/25 text-blue-400 font-bold'
+                      : 'border-transparent text-gray-400 hover:text-gray-200 hover:bg-white/5'
+                  }`}
+                  type="button"
+                >
+                  <span className="w-1.5 h-1.5 rounded-full bg-blue-400 shrink-0" />
+                  <span>{animCat.label}</span>
+                </button>
+              ))}
             </div>
           </div>
         ) : (

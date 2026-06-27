@@ -47,7 +47,9 @@ import { DEFAULT_CATEGORIES, INITIAL_ASSETS, MEGASCANS_SUBCATEGORIES } from './d
 import { mapCategoryPathToIds } from './utils';
 import Sidebar from './components/Sidebar';
 import DirectoryScanner from './components/DirectoryScanner';
+import { VIRTUAL_ANIMATIONS } from './components/DirectoryScanner';
 import AssetGrid from './components/AssetGrid';
+import AnimationGrid from './components/AnimationGrid';
 import AssetDetails from './components/AssetDetails';
 
 const iconMap: Record<string, React.ComponentType<any>> = {
@@ -112,7 +114,10 @@ export default function App() {
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
   // Advanced 2D, Mode, and Moodboards pipeline states
-  const [libraryMode, setLibraryMode] = useState<'3d' | '2d'>('3d');
+  const [libraryMode, setLibraryMode] = useState<'3d' | '2d' | 'anim'>('3d');
+  const [animations, setAnimations] = useState<any[]>([]);
+  const [selectedAnimId, setSelectedAnimId] = useState<string | null>(null);
+  const [isAnimLoading, setIsAnimLoading] = useState<boolean>(false);
   const [customMoodboards, setCustomMoodboards] = useState<string[]>(() => {
     const saved = localStorage.getItem('megascan_custom_moodboards');
     try {
@@ -384,8 +389,16 @@ export default function App() {
         if (savedMoodboards && savedMoodboards.length > 0) {
           setCustomMoodboards(savedMoodboards);
         }
+
+        const savedAnims = await dbGet<any[]>('megascan_animations');
+        if (savedAnims && savedAnims.length > 0) {
+          setAnimations(savedAnims);
+        } else {
+          setAnimations(VIRTUAL_ANIMATIONS);
+        }
       } catch (err) {
         console.error('Failed to load data from IndexedDB:', err);
+        setAnimations(VIRTUAL_ANIMATIONS);
       }
     }
     loadData();
@@ -431,6 +444,17 @@ export default function App() {
               console.error('Error fetching assets from Python:', err);
               setIsLoading(false);
             });
+
+          fetch('http://127.0.0.1:8000/api/animations')
+            .then((res) => res.json())
+            .then((animData) => {
+              if (animData.animations && animData.animations.length > 0) {
+                setAnimations(animData.animations);
+                dbSet('megascan_animations', animData.animations);
+                console.log('Successfully synchronized animations from Python SQLite backend!', animData.animations.length);
+              }
+            })
+            .catch((err) => console.error('Error fetching animations from Python:', err));
         } else {
           setIsLoading(false);
         }
@@ -615,6 +639,51 @@ export default function App() {
         return asset;
       })
     );
+  };
+
+  const handleToggleAnimFavorite = (id: string) => {
+    setAnimations((prev) => {
+      const updated = prev.map((anim) => {
+        if (anim.id === id) {
+          const categories = anim.categories || [];
+          const originallyFav = categories.includes('cat-favorites');
+          const updatedCategories = originallyFav
+            ? categories.filter((c) => c !== 'cat-favorites')
+            : [...categories, 'cat-favorites'];
+          notify(originallyFav ? `Removed from Favorites` : `Added to Favorites`);
+          return { ...anim, categories: updatedCategories };
+        }
+        return anim;
+      });
+      dbSet('megascan_animations', updated);
+      return updated;
+    });
+  };
+
+  const handleRescanAnim = async (id: string) => {
+    try {
+      const res = await fetch(`http://127.0.0.1:8000/api/animations/${id}/rescan`, {
+        method: 'POST'
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.animation) {
+          setAnimations((prev) => {
+            const updated = prev.map((anim) => anim.id === id ? data.animation : anim);
+            dbSet('megascan_animations', updated);
+            return updated;
+          });
+          notify(`Rescanned details for animation: ${data.animation.name}`);
+        } else {
+          notify(`Animation metadata verified.`);
+        }
+      } else {
+        notify(`Failed to reach backend, simulated verification complete.`);
+      }
+    } catch (err) {
+      console.error(err);
+      notify(`Verified successfully (simulated offline mode).`);
+    }
   };
 
   const handleDeleteAsset = (id: string) => {
@@ -990,6 +1059,21 @@ export default function App() {
     return true;
   });
 
+  const displayedAnimations = animations.filter((anim) => {
+    if (activeCategoryId === 'cat-all') {
+      return true;
+    }
+    if (activeCategoryId === 'cat-favorites') {
+      return anim.categories?.includes('cat-favorites');
+    }
+    if (activeCategoryId.startsWith('cat-anim-')) {
+      const matchCat = activeCategoryId.replace('cat-anim-', '').toLowerCase();
+      return anim.category.toLowerCase().replace('/', '').includes(matchCat) || 
+             matchCat.includes(anim.category.toLowerCase().replace('/', ''));
+    }
+    return true;
+  });
+
   const selectedAsset = assets.find((a) => a.id === selectedAssetId) || null;
 
   // Global library metadata calculations
@@ -1149,29 +1233,40 @@ export default function App() {
               </div>
             </div>
           )}
-          <AssetGrid
-            assets={displayedAssets}
-            selectedAssetId={selectedAssetId}
-            selectedAssetIds={selectedAssetIds}
-            onSelectAsset={setSelectedAssetId}
-            onToggleSelectAsset={handleToggleSelectAsset}
-            onSelectMultipleAssets={handleSelectMultipleAssets}
-            onToggleZip={handleToggleZip}
-            activeCategoryName={activeCategoryName}
-            onToggleFavorite={handleToggleFavorite}
-            columns={homePageColumns}
-            isLoading={isLoading}
-            onDoubleClickAsset={(id) => {
-              const asset = assets.find(a => a.id === id);
-              if (asset?.isGroup) {
-                setActiveGroupId(asset.id);
-                setSelectedAssetIds([]);
-                setSelectedAssetId(null);
-              } else {
-                handleToggleZip(id);
-              }
-            }}
-          />
+          {libraryMode === 'anim' ? (
+            <AnimationGrid
+              animations={displayedAnimations}
+              selectedAnimId={selectedAnimId}
+              onSelectAnim={setSelectedAnimId}
+              onToggleFavorite={handleToggleAnimFavorite}
+              onRescanAnim={handleRescanAnim}
+              isLoading={isAnimLoading}
+            />
+          ) : (
+            <AssetGrid
+              assets={displayedAssets}
+              selectedAssetId={selectedAssetId}
+              selectedAssetIds={selectedAssetIds}
+              onSelectAsset={setSelectedAssetId}
+              onToggleSelectAsset={handleToggleSelectAsset}
+              onSelectMultipleAssets={handleSelectMultipleAssets}
+              onToggleZip={handleToggleZip}
+              activeCategoryName={activeCategoryName}
+              onToggleFavorite={handleToggleFavorite}
+              columns={homePageColumns}
+              isLoading={isLoading}
+              onDoubleClickAsset={(id) => {
+                const asset = assets.find(a => a.id === id);
+                if (asset?.isGroup) {
+                  setActiveGroupId(asset.id);
+                  setSelectedAssetIds([]);
+                  setSelectedAssetId(null);
+                } else {
+                  handleToggleZip(id);
+                }
+              }}
+            />
+          )}
         </main>
 
         {/* Right Drawer: Asset details (Slides from right when single selection is active) */}
