@@ -34,7 +34,8 @@ import {
   ChevronLeft,
   ChevronDown,
   Library,
-  RefreshCw
+  RefreshCw,
+  Keyboard
 } from 'lucide-react';
 
 import { Asset, Category, getAssetGroupKey } from './types';
@@ -144,7 +145,7 @@ export default function App() {
   const [draftCachePath, setDraftCachePath] = useState<string>('');
 
   // Categories editing in Settings states
-  const [activeSettingsTab, setActiveSettingsTab] = useState<'personalization' | 'categories' | 'bridge' | 'storage' | 'update'>('personalization');
+  const [activeSettingsTab, setActiveSettingsTab] = useState<'personalization' | 'categories' | 'bridge' | 'storage' | 'update' | 'shortcuts'>('personalization');
   const [draftCategoriesList, setDraftCategoriesList] = useState<Category[]>([]);
   const [categoryNavPath, setCategoryNavPath] = useState<string[]>([]);
   const [newSubcategoryInput, setNewSubcategoryInput] = useState<string>('');
@@ -160,9 +161,6 @@ export default function App() {
   // Update checker states
   const [updateCheckUrl, setUpdateCheckUrl] = useState<string>(() => {
     return localStorage.getItem('megascan_update_check_url') || 'https://raw.githubusercontent.com/bvermaak2008/megascans-organizer/main/version.json';
-  });
-  const [simulateUpdate, setSimulateUpdate] = useState<boolean>(() => {
-    return localStorage.getItem('megascan_simulate_update') === 'true';
   });
   const [isCheckingUpdate, setIsCheckingUpdate] = useState<boolean>(false);
   const [showUpdateResultModal, setShowUpdateResultModal] = useState<boolean>(false);
@@ -212,10 +210,6 @@ export default function App() {
     localStorage.setItem('megascan_update_check_url', updateCheckUrl);
   }, [updateCheckUrl]);
 
-  useEffect(() => {
-    localStorage.setItem('megascan_simulate_update', simulateUpdate ? 'true' : 'false');
-  }, [simulateUpdate]);
-
   const isNewerVersion = (curr: string, next: string): boolean => {
     const cParts = curr.split('.').map(Number);
     const nParts = next.split('.').map(Number);
@@ -234,32 +228,6 @@ export default function App() {
     
     // Slight delay for a polished scanning UX
     await new Promise((resolve) => setTimeout(resolve, 800));
-
-    if (simulateUpdate) {
-      setIsCheckingUpdate(false);
-      setUpdateResult({
-        status: 'new-update',
-        version: '2.1.0',
-        releaseDate: new Date().toISOString().split('T')[0],
-        url: 'https://github.com/bvermaak2008/megascans-organizer/releases/download/v2.1.0/MegascansOrganizer.exe',
-        whatsNew: [
-          'Added persistent local storage using IndexedDB so uploaded and scanned assets are saved automatically and never lost on app restart!',
-          'Added Shift-click range selection! Select one asset, hold Shift, and click another to select all assets in between.',
-          'Added interactive update checker in Settings to check, download, or simulate software updates.'
-        ],
-        improvements: [
-          'Immediate dismissal of the floating batch actions bar when items are deleted.',
-          'Enhanced IndexedDB/localStorage sync performance.',
-          'Polished user interface with custom indicators.'
-        ],
-        fixes: [
-          'Fixed an issue where the batch actions bar remained visible after deleting selected assets.',
-          'Fixed file size calculation formatting in the floating status indicator.'
-        ]
-      });
-      setShowUpdateResultModal(true);
-      return;
-    }
 
     try {
       const res = await fetch(updateCheckUrl, { cache: 'no-store' });
@@ -1805,6 +1773,17 @@ export default function App() {
                       <RefreshCw className="w-3.5 h-3.5" />
                       <span className="flex-1 truncate">Updates</span>
                     </button>
+                    <button
+                      onClick={() => setActiveSettingsTab('shortcuts')}
+                      className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs text-left transition-colors cursor-pointer ${
+                        activeSettingsTab === 'shortcuts'
+                          ? 'bg-blue-600/10 border border-blue-500/20 text-blue-400 font-bold'
+                          : 'border border-transparent text-gray-400 hover:text-white hover:bg-white/5'
+                      }`}
+                    >
+                      <Keyboard className="w-3.5 h-3.5" />
+                      <span className="flex-1 truncate">Keyboard Shortcuts</span>
+                    </button>
                   </div>
 
                   {/* Right Content Pane */}
@@ -2261,26 +2240,7 @@ export default function App() {
                               </p>
                             </div>
 
-                            {/* Simulation toggle */}
-                            <div className="bg-white/5 border border-white/5 rounded-lg p-3 flex items-center justify-between">
-                              <div className="flex-1 pr-4">
-                                <span className="text-xs font-bold text-white block mb-0.5">Simulate Update</span>
-                                <span className="text-[10px] text-gray-500 leading-normal block">
-                                  Force-trigger a "New Update Available" simulated state with full changelog to test the updater experience.
-                                </span>
-                              </div>
-                              <button
-                                type="button"
-                                onClick={() => setSimulateUpdate(!simulateUpdate)}
-                                className={"w-8 h-4.5 rounded-full p-0.5 transition-colors cursor-pointer outline-none relative flex items-center " + (simulateUpdate ? "bg-blue-600 justify-end" : "bg-white/10 justify-start")}
-                              >
-                                <motion.div
-                                  layout
-                                  className="w-3.5 h-3.5 rounded-full bg-white shadow-sm"
-                                  transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-                                />
-                              </button>
-                            </div>
+                            
                           </div>
                         </div>
 
@@ -2297,6 +2257,111 @@ export default function App() {
                           </button>
                           <span className="text-[9px] text-gray-500 font-mono italic">
                             {isCheckingUpdate ? 'Searching remote channel...' : 'Last checked: Just now'}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+
+                    {activeSettingsTab === 'shortcuts' && (
+                      <div className="flex flex-col h-full gap-4 text-left">
+                        <div className="border-b border-white/5 pb-3">
+                          <h4 className="text-xs font-bold text-white uppercase tracking-wider mb-1 flex items-center gap-2">
+                            <Keyboard className="w-3.5 h-3.5 text-blue-400" />
+                            Keyboard Shortcuts
+                          </h4>
+                          <p className="text-gray-400 text-[11px] leading-relaxed">
+                            Navigate, inspect, and organize your megascans library with lightning speed using built-in system shortcuts.
+                          </p>
+                        </div>
+
+                        <div className="flex-1 overflow-y-auto pr-1 space-y-4 max-h-[420px]">
+                          {/* Quick View Controls */}
+                          <div className="space-y-2">
+                            <h5 className="text-[10px] text-blue-400 font-bold uppercase tracking-wider">Asset Quick View Overlay</h5>
+                            <div className="bg-white/3 border border-white/5 rounded-xl divide-y divide-white/5">
+                              <div className="flex items-center justify-between p-2.5">
+                                <span className="text-[11px] text-gray-300">Previous Asset</span>
+                                <div className="flex items-center gap-1">
+                                  <kbd className="inline-flex items-center justify-center px-1.5 py-0.5 text-[10px] font-mono font-bold text-gray-200 bg-white/10 border border-white/15 rounded shadow-[0_1.5px_0_rgba(255,255,255,0.05)]">←</kbd>
+                                  <span className="text-[10px] text-gray-500 font-sans">or</span>
+                                  <kbd className="inline-flex items-center justify-center px-1.5 py-0.5 text-[10px] font-mono font-bold text-gray-200 bg-white/10 border border-white/15 rounded shadow-[0_1.5px_0_rgba(255,255,255,0.05)]">Arrow Left</kbd>
+                                </div>
+                              </div>
+                              <div className="flex items-center justify-between p-2.5">
+                                <span className="text-[11px] text-gray-300">Next Asset</span>
+                                <div className="flex items-center gap-1">
+                                  <kbd className="inline-flex items-center justify-center px-1.5 py-0.5 text-[10px] font-mono font-bold text-gray-200 bg-white/10 border border-white/15 rounded shadow-[0_1.5px_0_rgba(255,255,255,0.05)]">→</kbd>
+                                  <span className="text-[10px] text-gray-500 font-sans">or</span>
+                                  <kbd className="inline-flex items-center justify-center px-1.5 py-0.5 text-[10px] font-mono font-bold text-gray-200 bg-white/10 border border-white/15 rounded shadow-[0_1.5px_0_rgba(255,255,255,0.05)]">Arrow Right</kbd>
+                                </div>
+                              </div>
+                              <div className="flex items-center justify-between p-2.5">
+                                <span className="text-[11px] text-gray-300">Exit Quick View</span>
+                                <kbd className="inline-flex items-center justify-center px-1.5 py-0.5 text-[10px] font-mono font-bold text-gray-200 bg-white/10 border border-white/15 rounded shadow-[0_1.5px_0_rgba(255,255,255,0.05)]">Esc</kbd>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Multi-Selection Modifiers */}
+                          <div className="space-y-2">
+                            <h5 className="text-[10px] text-blue-400 font-bold uppercase tracking-wider">Library Selection Modifiers</h5>
+                            <div className="bg-white/3 border border-white/5 rounded-xl divide-y divide-white/5">
+                              <div className="flex items-center justify-between p-2.5">
+                                <span className="text-[11px] text-gray-300">Toggle Single Asset Selection</span>
+                                <div className="flex items-center gap-1">
+                                  <kbd className="inline-flex items-center justify-center px-1.5 py-0.5 text-[10px] font-mono font-bold text-gray-200 bg-white/10 border border-white/15 rounded shadow-[0_1.5px_0_rgba(255,255,255,0.05)]">Ctrl</kbd>
+                                  <span className="text-[10px] text-gray-500 font-sans">/</span>
+                                  <kbd className="inline-flex items-center justify-center px-1.5 py-0.5 text-[10px] font-mono font-bold text-gray-200 bg-white/10 border border-white/15 rounded shadow-[0_1.5px_0_rgba(255,255,255,0.05)]">⌘ Cmd</kbd>
+                                  <span className="text-[10px] text-gray-500 font-sans">+</span>
+                                  <span className="text-[11px] text-gray-400">Click</span>
+                                </div>
+                              </div>
+                              <div className="flex items-center justify-between p-2.5">
+                                <span className="text-[11px] text-gray-300">Select Asset Range</span>
+                                <div className="flex items-center gap-1">
+                                  <kbd className="inline-flex items-center justify-center px-1.5 py-0.5 text-[10px] font-mono font-bold text-gray-200 bg-white/10 border border-white/15 rounded shadow-[0_1.5px_0_rgba(255,255,255,0.05)]">Shift</kbd>
+                                  <span className="text-[10px] text-gray-500 font-sans">+</span>
+                                  <span className="text-[11px] text-gray-400">Click</span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Category Sidebar & Fields */}
+                          <div className="space-y-2">
+                            <h5 className="text-[10px] text-blue-400 font-bold uppercase tracking-wider">Sidebar Renaming & Inputs</h5>
+                            <div className="bg-white/3 border border-white/5 rounded-xl divide-y divide-white/5">
+                              <div className="flex items-center justify-between p-2.5">
+                                <span className="text-[11px] text-gray-300">Confirm & Save Rename</span>
+                                <kbd className="inline-flex items-center justify-center px-1.5 py-0.5 text-[10px] font-mono font-bold text-gray-200 bg-white/10 border border-white/15 rounded shadow-[0_1.5px_0_rgba(255,255,255,0.05)]">Enter</kbd>
+                              </div>
+                              <div className="flex items-center justify-between p-2.5">
+                                <span className="text-[11px] text-gray-300">Cancel Renaming Action</span>
+                                <kbd className="inline-flex items-center justify-center px-1.5 py-0.5 text-[10px] font-mono font-bold text-gray-200 bg-white/10 border border-white/15 rounded shadow-[0_1.5px_0_rgba(255,255,255,0.05)]">Esc</kbd>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Detail View Actions */}
+                          <div className="space-y-2">
+                            <h5 className="text-[10px] text-blue-400 font-bold uppercase tracking-wider">Asset Properties Sidebar</h5>
+                            <div className="bg-white/3 border border-white/5 rounded-xl divide-y divide-white/5">
+                              <div className="flex items-center justify-between p-2.5">
+                                <span className="text-[11px] text-gray-300">Create & Add Moodboard Tag</span>
+                                <kbd className="inline-flex items-center justify-center px-1.5 py-0.5 text-[10px] font-mono font-bold text-gray-200 bg-white/10 border border-white/15 rounded shadow-[0_1.5px_0_rgba(255,255,255,0.05)]">Enter</kbd>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Read-Only Informational Message */}
+                        <div className="border-t border-white/5 pt-3 mt-auto flex items-center justify-between">
+                          <span className="text-[10px] text-gray-500 font-sans flex items-center gap-1.5">
+                            <span className="inline-block w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></span>
+                            All hotkeys are active and ready
+                          </span>
+                          <span className="text-[9px] text-gray-500 italic">
+                            Pre-configured layout (read-only)
                           </span>
                         </div>
                       </div>
