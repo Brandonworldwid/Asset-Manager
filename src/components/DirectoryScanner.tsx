@@ -276,7 +276,7 @@ export default function DirectoryScanner({ libraryAssets, evictedAssetPaths = []
     setScanLogs([`Starting local image library inspection...`, `Reading files from local directory...`]);
 
     const fileList = Array.from(files) as any[];
-    const imageExtensions = ['.png', '.jpg', '.jpeg', '.webp', '.bmp', '.gif', '.tiff'];
+    const imageExtensions = ['.png', '.jpg', '.jpeg', '.jfif', '.webp', '.bmp', '.gif', '.tiff'];
     const imageFiles = fileList.filter(f => {
       const lowerName = f.name.toLowerCase();
       const isImage = imageExtensions.some(ext => lowerName.endsWith(ext));
@@ -287,7 +287,7 @@ export default function DirectoryScanner({ libraryAssets, evictedAssetPaths = []
 
     if (imageFiles.length === 0) {
       setIsScanning(false);
-      setRealScanError('No standalone images found in the selected folder. Ensure the folder has image files (.png, .jpg, .jpeg, .webp, etc.) directly or in subdirectories.');
+      setRealScanError('No standalone images found in the selected folder. Ensure the folder has image files (.png, .jpg, .jpeg, .jfif, .webp, etc.) directly or in subdirectories.');
       setScanLogs(prev => [...prev, `Scan finished. No matching image file extensions found.`]);
       return;
     }
@@ -795,7 +795,7 @@ export default function DirectoryScanner({ libraryAssets, evictedAssetPaths = []
         }
 
         // Look for a local preview image file: prioritize "preview", then "render", then "thumb", then "icon"
-        const imageExtensions = ['.png', '.jpg', '.jpeg', '.webp', '.bmp', '.gif', '.tiff'];
+        const imageExtensions = ['.png', '.jpg', '.jpeg', '.jfif', '.webp', '.bmp', '.gif', '.tiff'];
         
         const possiblePreviews = dirFiles.filter(f => {
           const lowerName = f.name.toLowerCase();
@@ -1248,7 +1248,7 @@ export default function DirectoryScanner({ libraryAssets, evictedAssetPaths = []
                   Choose a directory containing standard creative image assets. The scanner will automatically scan and recursively parse standalone 2D images, extracting:
                 </p>
                 <ul className="list-disc pl-3.5 mt-1 space-y-1 text-[9px] text-gray-500 font-mono">
-                  <li>Metadata details: <span className="text-gray-350 font-semibold">File size, dimensions, resolution, and format type (PNG, JPG, WebP)</span></li>
+                  <li>Metadata details: <span className="text-gray-350 font-semibold">File size, dimensions, resolution, and format type (PNG, JPG, WebP, JFIF)</span></li>
                   <li>Aesthetic details: <span className="text-gray-350 font-semibold">Aspect ratio, orientation, and a 5-color dominant palette</span></li>
                 </ul>
               </div>

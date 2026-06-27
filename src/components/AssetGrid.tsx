@@ -107,7 +107,7 @@ const LazyGroupCard = ({ children }: { children: React.ReactNode; key?: string }
   }, [isVisible]);
 
   return (
-    <div ref={containerRef} className="contents">
+    <div ref={containerRef} className="h-full w-full min-h-[300px]">
       {isVisible ? children : (
         <div className="flex flex-col bg-[#161616] rounded-xl border border-white/5 overflow-hidden h-full w-full min-h-[300px] select-none">
           <div className="aspect-square w-full bg-[#0F0F0F] flex items-center justify-center border-b border-b-white/5">
@@ -557,7 +557,7 @@ export default function AssetGrid({
                     }
                   }}
                   whileHover={{ y: -2, transition: { duration: 0.12 } }}
-                  className={`group relative flex flex-col bg-[#161616] rounded-xl border overflow-hidden cursor-pointer select-none transition-all ${
+                  className={`group relative flex flex-col h-full w-full bg-[#161616] rounded-xl border overflow-hidden cursor-pointer select-none transition-all ${
                     isMultiSelected
                       ? 'border-blue-500 ring-2 ring-blue-500/20 shadow-lg shadow-blue-500/10 bg-[#1a1c22]'
                       : isSingleActive
