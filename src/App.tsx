@@ -38,6 +38,7 @@ import {
 } from 'lucide-react';
 
 import { Asset, Category, getAssetGroupKey } from './types';
+import { dbGet, dbSet } from './utils/db';
 import packageJson from '../package.json';
 import { DEFAULT_CATEGORIES, INITIAL_ASSETS, MEGASCANS_SUBCATEGORIES } from './data/mockAssets';
 import { mapCategoryPathToIds } from './utils';
@@ -181,9 +182,14 @@ export default function App() {
     localStorage.setItem('megascan_home_page_columns', homePageColumns.toString());
   }, [homePageColumns]);
 
-  // Save customMoodboards to localStorage
+  // Save customMoodboards to localStorage and IndexedDB
   useEffect(() => {
-    localStorage.setItem('megascan_custom_moodboards', JSON.stringify(customMoodboards));
+    dbSet('megascan_custom_moodboards', customMoodboards);
+    try {
+      localStorage.setItem('megascan_custom_moodboards', JSON.stringify(customMoodboards));
+    } catch (e) {
+      console.error('Failed to save customMoodboards to localStorage:', e);
+    }
   }, [customMoodboards]);
   
   // Batch rescan state
@@ -199,8 +205,9 @@ export default function App() {
     }, 4000);
   };
 
-  // Save to localStorage whenever states change
+  // Save to localStorage and IndexedDB whenever states change
   useEffect(() => {
+    dbSet('megascan_categories', categories);
     try {
       localStorage.setItem('megascan_categories', JSON.stringify(categories));
     } catch (e) {
@@ -209,21 +216,67 @@ export default function App() {
   }, [categories]);
 
   useEffect(() => {
+    dbSet('megascan_assets', assets);
     try {
       localStorage.setItem('megascan_assets', JSON.stringify(assets));
     } catch (e) {
-      console.error('Failed to save assets to localStorage:', e);
-      notify('Local storage limit reached. Assets will remain active in this session, but some changes won\'t persist across reloads.');
+      // IndexedDB has saved the assets successfully, so we do not need to alarm the user unless both fail
+      console.warn('localStorage full, but successfully backed up to IndexedDB.');
     }
   }, [assets]);
 
   useEffect(() => {
+    dbSet('megascan_evicted_paths', evictedAssetPaths);
     try {
       localStorage.setItem('megascan_evicted_paths', JSON.stringify(evictedAssetPaths));
     } catch (e) {
       console.error('Failed to save evicted paths to localStorage:', e);
     }
   }, [evictedAssetPaths]);
+
+  // Synchronize selected assets when assets array changes (e.g., deletions)
+  useEffect(() => {
+    if (selectedAssetId && !assets.some(a => a.id === selectedAssetId)) {
+      setSelectedAssetId(null);
+    }
+    setSelectedAssetIds(prev => {
+      const next = prev.filter(id => assets.some(a => a.id === id));
+      if (next.length !== prev.length) {
+        return next;
+      }
+      return prev;
+    });
+  }, [assets, selectedAssetId]);
+
+  // Load data from IndexedDB on startup
+  useEffect(() => {
+    async function loadData() {
+      try {
+        const savedAssets = await dbGet<Asset[]>('megascan_assets');
+        if (savedAssets && savedAssets.length > 0) {
+          setAssets(savedAssets);
+        }
+        
+        const savedCategories = await dbGet<Category[]>('megascan_categories');
+        if (savedCategories && savedCategories.length > 0) {
+          setCategories(savedCategories);
+        }
+
+        const savedEvicted = await dbGet<string[]>('megascan_evicted_paths');
+        if (savedEvicted && savedEvicted.length > 0) {
+          setEvictedAssetPaths(savedEvicted);
+        }
+
+        const savedMoodboards = await dbGet<string[]>('megascan_custom_moodboards');
+        if (savedMoodboards && savedMoodboards.length > 0) {
+          setCustomMoodboards(savedMoodboards);
+        }
+      } catch (err) {
+        console.error('Failed to load data from IndexedDB:', err);
+      }
+    }
+    loadData();
+  }, []);
 
   // Synchronize with local Python (FastAPI) cached sqlite library on startup
   useEffect(() => {
@@ -531,6 +584,11 @@ export default function App() {
       setSelectedAssetIds([id]);
       setSelectedAssetId(id);
     }
+  };
+
+  const handleSelectMultipleAssets = (ids: string[]) => {
+    setSelectedAssetIds(ids);
+    setSelectedAssetId(null);
   };
 
   const handleBatchDelete = () => {
@@ -984,6 +1042,7 @@ export default function App() {
             selectedAssetIds={selectedAssetIds}
             onSelectAsset={setSelectedAssetId}
             onToggleSelectAsset={handleToggleSelectAsset}
+            onSelectMultipleAssets={handleSelectMultipleAssets}
             onToggleZip={handleToggleZip}
             activeCategoryName={activeCategoryName}
             onToggleFavorite={handleToggleFavorite}

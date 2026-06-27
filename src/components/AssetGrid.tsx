@@ -35,6 +35,7 @@ interface AssetGridProps {
   selectedAssetIds: string[];
   onSelectAsset: (id: string) => void;
   onToggleSelectAsset: (id: string, isCtrl: boolean) => void;
+  onSelectMultipleAssets?: (ids: string[]) => void;
   onToggleZip: (id: string) => void;
   activeCategoryName: string;
   onToggleFavorite: (id: string) => void;
@@ -97,6 +98,7 @@ export default function AssetGrid({
   selectedAssetIds,
   onSelectAsset,
   onToggleSelectAsset,
+  onSelectMultipleAssets,
   onToggleZip,
   activeCategoryName,
   onToggleFavorite,
@@ -117,6 +119,7 @@ export default function AssetGrid({
   const [showExplorerModal, setShowExplorerModal] = useState(false);
   const [useTransparencyGrid, setUseTransparencyGrid] = useState(false);
   const [visibleCount, setVisibleCount] = useState(100);
+  const [lastClickedGroupKey, setLastClickedGroupKey] = useState<string | null>(null);
 
   // Reset visible items count when filters or assets list size change
   React.useEffect(() => {
@@ -451,9 +454,44 @@ export default function AssetGrid({
                   onClick={(e) => {
                     // Detect if Ctrl or Cmd key is held
                     const isCtrl = e.ctrlKey || e.metaKey;
+                    const isShift = e.shiftKey;
                     const alreadySelected = group.allAssets.find(a => selectedAssetIds.includes(a.id)) || group.allAssets.find(a => a.id === selectedAssetId);
                     const targetId = alreadySelected ? alreadySelected.id : asset.id;
-                    onToggleSelectAsset(targetId, isCtrl);
+
+                    if (isShift && lastClickedGroupKey && onSelectMultipleAssets) {
+                      // Perform range selection based on rendered assetGroups
+                      const startIdx = assetGroups.findIndex(g => g.key === lastClickedGroupKey);
+                      const endIdx = assetGroups.findIndex(g => g.key === group.key);
+                      
+                      if (startIdx !== -1 && endIdx !== -1) {
+                        const minIdx = Math.min(startIdx, endIdx);
+                        const maxIdx = Math.max(startIdx, endIdx);
+                        
+                        // Get the groups in between (inclusive)
+                        const rangeGroups = assetGroups.slice(minIdx, maxIdx + 1);
+                        
+                        // Extract target asset IDs for each group in the range
+                        const targetIds = rangeGroups.map(g => {
+                          const existingSelected = g.allAssets.find(a => selectedAssetIds.includes(a.id)) || g.allAssets.find(a => a.id === selectedAssetId);
+                          return existingSelected ? existingSelected.id : g.primaryAsset.id;
+                        });
+                        
+                        let newSelectedIds: string[];
+                        if (isCtrl) {
+                          // Union of current selection and targetIds
+                          newSelectedIds = Array.from(new Set([...selectedAssetIds, ...targetIds]));
+                        } else {
+                          newSelectedIds = targetIds;
+                        }
+                        
+                        onSelectMultipleAssets(newSelectedIds);
+                      }
+                      setLastClickedGroupKey(group.key);
+                    } else {
+                      // Normal toggle/single selection
+                      onToggleSelectAsset(targetId, isCtrl);
+                      setLastClickedGroupKey(group.key);
+                    }
                   }}
                   onDoubleClick={() => {
                     const targetId = selectedAssetId && group.allAssets.some(a => a.id === selectedAssetId) ? (selectedAssetId as string) : asset.id;
