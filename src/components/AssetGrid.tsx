@@ -74,6 +74,61 @@ const AssetCardSkeleton = () => {
   );
 };
 
+const LazyGroupCard = ({ children }: { children: React.ReactNode; key?: string }) => {
+  const [isVisible, setIsVisible] = useState(false);
+  const containerRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    if (isVisible) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setIsVisible(true);
+        }
+      },
+      {
+        root: null,
+        rootMargin: '400px', // Buffer zone to pre-render cards before scrolling onto the viewport
+        threshold: 0.01
+      }
+    );
+
+    const currentRef = containerRef.current;
+    if (currentRef) {
+      observer.observe(currentRef);
+    }
+
+    return () => {
+      if (currentRef) {
+        observer.unobserve(currentRef);
+      }
+    };
+  }, [isVisible]);
+
+  return (
+    <div ref={containerRef} className="contents">
+      {isVisible ? children : (
+        <div className="flex flex-col bg-[#161616] rounded-xl border border-white/5 overflow-hidden h-full w-full min-h-[300px] select-none">
+          <div className="aspect-square w-full bg-[#0F0F0F] flex items-center justify-center border-b border-b-white/5">
+            <Box className="w-8 h-8 text-white/5 animate-pulse" />
+          </div>
+          <div className="p-3 flex flex-col justify-between flex-grow bg-[#161616]">
+            <div className="space-y-1.5">
+              <div className="h-3.5 bg-white/5 rounded w-3/4 animate-pulse" />
+              <div className="h-2.5 bg-white/5 rounded w-1/3 animate-pulse" />
+            </div>
+            <div className="flex gap-1 mt-3.5">
+              <div className="h-3 bg-white/5 border border-white/5 rounded w-12 animate-pulse" />
+              <div className="h-3 bg-white/5 border border-white/5 rounded w-10 animate-pulse" />
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 const typeIcons: Record<AssetType, React.ComponentType<any>> = {
   '3d': Box,
   '3dplant': Leaf,
@@ -448,10 +503,10 @@ export default function AssetGrid({
               const totalGroupSize = group.allAssets.reduce((sum, a) => sum + a.size, 0);
 
               return (
-                <motion.div
-                  key={group.key}
-                  layoutId={`asset-group-card-${group.key}`}
-                  onClick={(e) => {
+                <LazyGroupCard key={group.key}>
+                  <motion.div
+                    layoutId={`asset-group-card-${group.key}`}
+                    onClick={(e) => {
                     // Detect if Ctrl or Cmd key is held
                     const isCtrl = e.ctrlKey || e.metaKey;
                     const isShift = e.shiftKey;
@@ -648,6 +703,7 @@ export default function AssetGrid({
                     </div>
                   </div>
                 </motion.div>
+              </LazyGroupCard>
               );
             })}
           </div>

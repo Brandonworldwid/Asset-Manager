@@ -35,7 +35,9 @@ import {
   ChevronDown,
   Library,
   RefreshCw,
-  Keyboard
+  Keyboard,
+  History,
+  ExternalLink
 } from 'lucide-react';
 
 import { Asset, Category, getAssetGroupKey } from './types';
@@ -2240,7 +2242,64 @@ export default function App() {
                               </p>
                             </div>
 
-                            
+                            {/* Past Versions Section */}
+                            <div className="pt-2 border-t border-white/5">
+                              <label className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                                <History className="w-3.5 h-3.5 text-blue-400" />
+                                Release & Version History
+                              </label>
+                              <div className="bg-white/3 border border-white/5 rounded-lg overflow-hidden divide-y divide-white/5 max-h-[155px] overflow-y-auto">
+                                {/* v2.1.0 */}
+                                <div className="p-2 text-left">
+                                  <div className="flex items-center justify-between gap-1 mb-1">
+                                    <div className="flex items-center gap-1.5">
+                                      <span className="text-[11px] font-bold text-white">v2.1.0</span>
+                                      <span className="text-[9px] text-blue-400 font-medium px-1.5 py-0.2 bg-blue-500/10 rounded-full border border-blue-500/10">Stable Target</span>
+                                    </div>
+                                    <span className="text-[9px] text-gray-500">2026-06-27</span>
+                                  </div>
+                                  <p className="text-[10px] text-gray-400 leading-relaxed font-sans">
+                                    Added persistent IndexedDB local storage, Shift-click multi-select, and an interactive Update Center.
+                                  </p>
+                                </div>
+
+                                {/* v2.0.0 */}
+                                <div className="p-2 text-left">
+                                  <div className="flex items-center justify-between gap-1 mb-1">
+                                    <div className="flex items-center gap-1.5">
+                                      <span className="text-[11px] font-bold text-white">v2.0.0</span>
+                                      <span className="text-[9px] text-emerald-500 font-medium px-1.5 py-0.2 bg-emerald-500/10 rounded-full border border-emerald-500/10">Active Build</span>
+                                    </div>
+                                    <span className="text-[9px] text-gray-500">2026-05-15</span>
+                                  </div>
+                                  <p className="text-[10px] text-gray-400 leading-relaxed font-sans">
+                                    Introduced multi-asset drag-and-drop support, custom tags, nested collections, and optimized caching engines.
+                                  </p>
+                                </div>
+
+                                {/* v1.9.0 */}
+                                <div className="p-2 text-left">
+                                  <div className="flex items-center justify-between gap-1 mb-1">
+                                    <span className="text-[11px] font-bold text-white">v1.9.0</span>
+                                    <span className="text-[9px] text-gray-500 font-sans">2026-03-10</span>
+                                  </div>
+                                  <p className="text-[10px] text-gray-400 leading-relaxed font-sans">
+                                    Integrated localized Bridge automation tools, directory folder parsing presets, and bulk metadata export features.
+                                  </p>
+                                </div>
+
+                                {/* v1.8.0 */}
+                                <div className="p-2 text-left bg-black/5">
+                                  <div className="flex items-center justify-between gap-1 mb-1">
+                                    <span className="text-[11px] font-bold text-white">v1.8.0</span>
+                                    <span className="text-[9px] text-gray-500 font-sans">2026-01-20</span>
+                                  </div>
+                                  <p className="text-[10px] text-gray-400 leading-relaxed font-sans">
+                                    First public beta release with real-time sidebar groupings, quick asset overlays, and tag indexing filters.
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
                           </div>
                         </div>
 
