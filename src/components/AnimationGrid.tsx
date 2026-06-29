@@ -20,7 +20,11 @@ import {
   Sparkles,
   Play,
   Pause,
-  AlertCircle
+  AlertCircle,
+  ArrowLeft,
+  Edit2,
+  FolderMinus,
+  Trash2
 } from 'lucide-react';
 
 interface AnimationAsset {
@@ -43,15 +47,25 @@ interface AnimationAsset {
   dateAdded: string;
   description: string;
   thumbnailUrl?: string;
+  groupId?: string;
+  isGroup?: boolean;
 }
 
 interface AnimationGridProps {
   animations: AnimationAsset[];
   selectedAnimId: string | null;
+  selectedAnimIds: string[];
   onSelectAnim: (id: string | null) => void;
+  onToggleSelectAnim: (id: string, isCtrl: boolean) => void;
+  onSelectMultipleAnims: (ids: string[]) => void;
   onToggleFavorite: (id: string) => void;
   onRescanAnim: (id: string) => Promise<void>;
   isLoading?: boolean;
+  activeGroupId?: string | null;
+  onEnterGroup?: (id: string | null) => void;
+  onRenameGroup?: (id: string, newName: string) => void;
+  onDissolveGroup?: (id: string) => void;
+  onExtractAnimsFromGroup?: (ids: string[]) => void;
 }
 
 type SortField = 'name' | 'duration' | 'frameCount' | 'date';
@@ -64,15 +78,17 @@ const AnimationCard = ({
   selectedAnimIds,
   onSelect,
   onToggleFavorite,
-  onRescan
+  onRescan,
+  onEnterGroup
 }: {
   key?: string;
   anim: AnimationAsset;
   isSelected: boolean;
   selectedAnimIds: string[];
-  onSelect: () => void;
+  onSelect: (e: React.MouseEvent) => void;
   onToggleFavorite: () => void;
   onRescan: (id: string) => Promise<void>;
+  onEnterGroup?: () => void;
 }) => {
   const [isHovered, setIsHovered] = useState(false);
   const [scrubFrame, setScrubFrame] = useState(0);
@@ -119,8 +135,14 @@ const AnimationCard = ({
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       onClick={onSelect}
+      onDoubleClick={(e) => {
+        if (anim.isGroup && onEnterGroup) {
+          e.stopPropagation();
+          onEnterGroup();
+        }
+      }}
       className={`group relative flex flex-col h-full w-full bg-[#161616] rounded-xl border overflow-hidden cursor-pointer select-none transition-all ${
-        isSelected
+        isSelected || selectedAnimIds.includes(anim.id)
           ? 'border-blue-500 ring-2 ring-blue-500/20 shadow-lg shadow-blue-500/10 bg-[#1a1c22]'
           : 'border-white/5 hover:border-white/10 hover:bg-[#1C1C1C]'
       }`}
@@ -132,7 +154,17 @@ const AnimationCard = ({
         {/* Abstract animated grid waves for procedural motion representation */}
         <div className="absolute inset-0 opacity-[0.06] bg-[linear-gradient(to_right,#808080_1px,transparent_1px),linear-gradient(to_bottom,#808080_1px,transparent_1px)] bg-[size:10px_10px]" />
         
-        {anim.thumbnailUrl ? (
+        {anim.isGroup ? (
+          <div className="flex flex-col items-center justify-center space-y-2 relative z-10">
+            <div className="flex -space-x-4">
+              <div className="w-10 h-10 rounded-full border-2 border-[#161616] bg-indigo-500/10 flex items-center justify-center backdrop-blur-sm z-30">
+                <Layers className="w-4 h-4 text-indigo-400" />
+              </div>
+              <div className="w-10 h-10 rounded-full border-2 border-[#161616] bg-blue-500/10 flex items-center justify-center backdrop-blur-sm z-20" />
+              <div className="w-10 h-10 rounded-full border-2 border-[#161616] bg-teal-500/10 flex items-center justify-center backdrop-blur-sm z-10" />
+            </div>
+          </div>
+        ) : anim.thumbnailUrl ? (
           <img
             src={anim.thumbnailUrl}
             alt=""
@@ -150,7 +182,7 @@ const AnimationCard = ({
           <div className="absolute bottom-0 left-0 right-0 h-1 bg-[#1e1e1f]" id="scrub-track">
             <div 
               className="h-full bg-blue-500 transition-all duration-75" 
-              style={{ width: `${((scrubFrame + 1) / anim.frameCount) * 100}%` }}
+              style={{ width: `${((scrubFrame + 1) / (anim.frameCount || 1)) * 100}%` }}
               id="scrub-bar"
             />
           </div>
@@ -159,13 +191,13 @@ const AnimationCard = ({
         {/* Floating Category/Tag (top-left) */}
         <div className="absolute top-2 left-2 flex items-center gap-1.5 px-1.5 py-0.5 bg-black/75 border border-white/10 text-gray-300 rounded text-[9px] font-bold font-mono tracking-wide backdrop-blur-sm shadow-sm">
           <Compass className="w-2.5 h-2.5 text-blue-400" />
-          <span>{anim.category.toUpperCase()}</span>
+          <span>{(anim.category || (anim.isGroup ? 'Group' : 'Animation')).toUpperCase()}</span>
         </div>
 
         {/* Skeleton type (bottom-left) */}
         <div className="absolute bottom-2 left-2 flex items-center gap-1 px-1.5 py-0.5 bg-[#0A0A0C]/90 border border-white/5 text-gray-400 rounded text-[8px] font-mono tracking-wider backdrop-blur-sm">
           <Layers className="w-2.5 h-2.5 text-gray-500" />
-          <span>{anim.skeletonName}</span>
+          <span>{anim.skeletonName || 'Mixed'}</span>
         </div>
 
         {/* Overlay showing play symbol or scrubbing counter */}
@@ -173,15 +205,29 @@ const AnimationCard = ({
 
         <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-150 bg-black/35 backdrop-blur-[1px] z-10">
           <div className="flex gap-2">
-            <button
-              onClick={handleRescanClick}
-              disabled={isRescanning}
-              className="px-3 py-1.5 bg-[#121214] border border-white/10 hover:border-blue-500/50 hover:bg-blue-600/10 text-gray-200 hover:text-blue-400 text-[11px] font-bold rounded-lg flex items-center gap-1.5 shadow-lg active:scale-95 transition-all cursor-pointer"
-              title="Rescan file structure for changes"
-            >
-              <RefreshCw className={`w-3 h-3 ${isRescanning ? 'animate-spin' : ''}`} />
-              <span>{isRescanning ? 'Rescanning...' : 'Rescan'}</span>
-            </button>
+            {anim.isGroup ? (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (onEnterGroup) onEnterGroup();
+                }}
+                className="px-3 py-1.5 bg-indigo-600 border border-indigo-500 hover:bg-indigo-500 hover:border-indigo-400 text-white text-[11px] font-bold rounded-lg flex items-center gap-1.5 shadow-lg active:scale-95 transition-all cursor-pointer"
+                title="Open Group View"
+              >
+                <FolderOpen className="w-3.5 h-3.5" />
+                <span>Open Group</span>
+              </button>
+            ) : (
+              <button
+                onClick={handleRescanClick}
+                disabled={isRescanning}
+                className="px-3 py-1.5 bg-[#121214] border border-white/10 hover:border-blue-500/50 hover:bg-blue-600/10 text-gray-200 hover:text-blue-400 text-[11px] font-bold rounded-lg flex items-center gap-1.5 shadow-lg active:scale-95 transition-all cursor-pointer"
+                title="Rescan file structure for changes"
+              >
+                <RefreshCw className={`w-3 h-3 ${isRescanning ? 'animate-spin' : ''}`} />
+                <span>{isRescanning ? 'Rescanning...' : 'Rescan'}</span>
+              </button>
+            )}
           </div>
         </div>
 
@@ -205,7 +251,7 @@ const AnimationCard = ({
 
         {/* Scrubbing Counter indicator (top-right) */}
         <div className="absolute top-2 right-2 font-mono text-[8px] font-bold px-1.5 py-0.5 bg-black/80 border border-white/5 rounded text-gray-400 select-none">
-          {isHovered ? `F: ${scrubFrame + 1}/${anim.frameCount}` : `${anim.fps} FPS`}
+          {isHovered ? `F: ${scrubFrame + 1}/${anim.frameCount || 1}` : `${anim.fps || 30} FPS`}
         </div>
       </div>
 
@@ -219,22 +265,22 @@ const AnimationCard = ({
           </h3>
           <div className="flex items-center gap-1.5 mt-1">
             <span className="font-mono text-[9px] text-gray-500 uppercase">
-              {anim.duration}s
+              {anim.duration || 0}s
             </span>
             <span className="w-0.5 h-0.5 rounded-full bg-white/10" />
             <span className="font-mono text-[9px] text-gray-400 font-bold">
-              {anim.frameCount} frames
+              {anim.frameCount || 0} frames
             </span>
             <span className="w-0.5 h-0.5 rounded-full bg-white/10" />
-            <span className="font-mono text-[9px] text-gray-550 truncate max-w-[100px]" title={anim.scannedPath}>
-              {anim.scannedPath.split('/').pop()}
+            <span className="font-mono text-[9px] text-gray-550 truncate max-w-[100px]" title={anim.scannedPath || ''}>
+              {(anim.scannedPath || '').split('/').pop() || 'Unknown'}
             </span>
           </div>
         </div>
 
         {/* Small Tags strip */}
         <div className="flex flex-wrap gap-0.5 mt-2.5">
-          {anim.tags.slice(0, 3).map((tag) => (
+          {(anim.tags || []).slice(0, 3).map((tag) => (
             <span
               key={tag}
               className="px-1 py-0.5 bg-white/5 border border-white/5 text-gray-400 rounded text-[8px] font-mono hover:text-white transition-colors"
@@ -256,20 +302,40 @@ const AnimationCard = ({
 export default function AnimationGrid({
   animations,
   selectedAnimId,
+  selectedAnimIds,
   onSelectAnim,
+  onToggleSelectAnim,
+  onSelectMultipleAnims,
   onToggleFavorite,
   onRescanAnim,
-  isLoading = false
+  isLoading = false,
+  activeGroupId,
+  onEnterGroup,
+  onRenameGroup,
+  onDissolveGroup,
+  onExtractAnimsFromGroup
 }: AnimationGridProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedSkeleton, setSelectedSkeleton] = useState<string>('all');
   const [isSkelDropdownOpen, setIsSkelDropdownOpen] = useState(false);
+  
+  const [selectedFrameRange, setSelectedFrameRange] = useState<string>('all');
+  const [isFrameDropdownOpen, setIsFrameDropdownOpen] = useState(false);
+  
+  const [selectedExt, setSelectedExt] = useState<string>('all');
+  const [isExtDropdownOpen, setIsExtDropdownOpen] = useState(false);
+  
   const [sortField, setSortField] = useState<SortField>('date');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
   const [quickViewAnim, setQuickViewAnim] = useState<AnimationAsset | null>(null);
   const [copiedPath, setCopiedPath] = useState(false);
   const [isPlayingPreview, setIsPlayingPreview] = useState(false);
   const [previewFrame, setPreviewFrame] = useState(0);
+  const [lastClickedAnimId, setLastClickedAnimId] = useState<string | null>(null);
+
+  // Group Editing State
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [editingNameValue, setEditingNameValue] = useState('');
 
   // Play animation preview loop in Quick View
   useEffect(() => {
@@ -289,6 +355,14 @@ export default function AnimationGrid({
 
   // Unique lists for filters
   const uniqueSkeletons = Array.from(new Set(animations.map((a) => a.skeletonName).filter(Boolean)));
+  const uniqueExtensions = Array.from(new Set(animations.map((a) => a.scannedPath?.split('.').pop()?.toLowerCase()).filter(Boolean)));
+
+  const frameRanges = [
+    { value: 'all', label: 'All Lengths' },
+    { value: 'short', label: 'Short (0-30f)' },
+    { value: 'medium', label: 'Medium (31-100f)' },
+    { value: 'long', label: 'Long (101+ f)' }
+  ];
 
   // Filter & Sort Logic
   const filteredAnims = animations
@@ -300,7 +374,15 @@ export default function AnimationGrid({
 
       const matchesSkeleton = selectedSkeleton === 'all' || anim.skeletonName === selectedSkeleton;
 
-      return matchesSearch && matchesSkeleton;
+      let matchesFrameRange = true;
+      if (selectedFrameRange === 'short') matchesFrameRange = anim.frameCount <= 30;
+      else if (selectedFrameRange === 'medium') matchesFrameRange = anim.frameCount > 30 && anim.frameCount <= 100;
+      else if (selectedFrameRange === 'long') matchesFrameRange = anim.frameCount > 100;
+
+      const ext = anim.scannedPath?.split('.').pop()?.toLowerCase();
+      const matchesExt = selectedExt === 'all' || ext === selectedExt;
+
+      return matchesSearch && matchesSkeleton && matchesFrameRange && matchesExt;
     })
     .sort((a, b) => {
       let comparison = 0;
@@ -430,6 +512,99 @@ export default function AnimationGrid({
             )}
           </div>
 
+          {/* Frame Range Filter Dropdown */}
+          <div className="relative" id="frame-filter-dropdown-container">
+            <button
+              onClick={() => setIsFrameDropdownOpen(!isFrameDropdownOpen)}
+              className="bg-[#121214] border border-white/10 hover:border-white/20 text-gray-300 text-xs rounded-lg px-3.5 py-1.5 flex items-center justify-between gap-3 outline-none select-none transition-all cursor-pointer min-w-[130px]"
+            >
+              <span>
+                {frameRanges.find(r => r.value === selectedFrameRange)?.label || 'All Lengths'}
+              </span>
+              <ChevronDown className="w-3.5 h-3.5 text-gray-400" />
+            </button>
+
+            {isFrameDropdownOpen && (
+              <>
+                <div 
+                  className="fixed inset-0 z-30" 
+                  onClick={() => setIsFrameDropdownOpen(false)} 
+                />
+                <div className="absolute left-0 mt-1.5 w-44 bg-[#121214] border border-white/10 rounded-lg shadow-2xl py-1 z-40 text-xs overflow-hidden">
+                  {frameRanges.map((range) => (
+                    <button
+                      key={range.value}
+                      onClick={() => {
+                        setSelectedFrameRange(range.value);
+                        setIsFrameDropdownOpen(false);
+                      }}
+                      className={`w-full text-left px-3.5 py-2 transition-colors ${
+                        selectedFrameRange === range.value
+                          ? 'bg-blue-600/10 text-blue-400 font-bold'
+                          : 'text-gray-300 hover:bg-white/5'
+                      }`}
+                    >
+                      {range.label}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Extension Filter Dropdown */}
+          <div className="relative" id="ext-filter-dropdown-container">
+            <button
+              onClick={() => setIsExtDropdownOpen(!isExtDropdownOpen)}
+              className="bg-[#121214] border border-white/10 hover:border-white/20 text-gray-300 text-xs rounded-lg px-3.5 py-1.5 flex items-center justify-between gap-3 outline-none select-none transition-all cursor-pointer min-w-[110px]"
+            >
+              <span>
+                {selectedExt === 'all' ? 'All Types' : `.${selectedExt}`}
+              </span>
+              <ChevronDown className="w-3.5 h-3.5 text-gray-400" />
+            </button>
+
+            {isExtDropdownOpen && (
+              <>
+                <div 
+                  className="fixed inset-0 z-30" 
+                  onClick={() => setIsExtDropdownOpen(false)} 
+                />
+                <div className="absolute left-0 mt-1.5 w-32 bg-[#121214] border border-white/10 rounded-lg shadow-2xl py-1 z-40 text-xs overflow-hidden">
+                  <button
+                    onClick={() => {
+                      setSelectedExt('all');
+                      setIsExtDropdownOpen(false);
+                    }}
+                    className={`w-full text-left px-3.5 py-2 transition-colors ${
+                      selectedExt === 'all'
+                        ? 'bg-blue-600/10 text-blue-400 font-bold'
+                        : 'text-gray-300 hover:bg-white/5'
+                    }`}
+                  >
+                    All Types
+                  </button>
+                  {uniqueExtensions.map((ext) => (
+                    <button
+                      key={ext}
+                      onClick={() => {
+                        setSelectedExt(ext);
+                        setIsExtDropdownOpen(false);
+                      }}
+                      className={`w-full text-left px-3.5 py-2 transition-colors ${
+                        selectedExt === ext
+                          ? 'bg-blue-600/10 text-blue-400 font-bold'
+                          : 'text-gray-300 hover:bg-white/5'
+                      }`}
+                    >
+                      .{ext}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+
           {/* Sort toggles */}
           <button
             onClick={() => toggleSort('date')}
@@ -472,6 +647,127 @@ export default function AnimationGrid({
         </div>
       </div>
 
+      {activeGroupId && (() => {
+        const activeGroup = animations.find(a => a.id === activeGroupId);
+        if (!activeGroup) return null;
+        
+        const startEditing = () => {
+          setEditingNameValue(activeGroup.name);
+          setIsEditingName(true);
+        };
+
+        const saveGroupName = () => {
+          if (editingNameValue.trim() && onRenameGroup) {
+            onRenameGroup(activeGroup.id, editingNameValue.trim());
+            setIsEditingName(false);
+          }
+        };
+
+        return (
+          <div className="mx-4 mt-4 p-4 rounded-xl bg-indigo-500/5 border border-indigo-500/25 flex flex-col sm:flex-row sm:items-center justify-between gap-4" id="anim-group-header">
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => {
+                  if (onEnterGroup) onEnterGroup(null);
+                  onSelectAnim(null);
+                  onSelectMultipleAnims([]);
+                }}
+                className="p-2 bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white rounded-lg transition-colors cursor-pointer"
+                title="Back to Animations Database"
+              >
+                <ArrowLeft className="w-4 h-4" />
+              </button>
+
+              <div className="flex items-center gap-2">
+                <div className="p-2 bg-indigo-500/15 border border-indigo-500/20 rounded-lg text-indigo-400">
+                  <FolderOpen className="w-4 h-4" />
+                </div>
+                
+                <div className="flex flex-col">
+                  {isEditingName ? (
+                    <div className="flex items-center gap-1.5">
+                      <input
+                        type="text"
+                        value={editingNameValue}
+                        onChange={(e) => setEditingNameValue(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') saveGroupName();
+                          if (e.key === 'Escape') setIsEditingName(false);
+                        }}
+                        className="bg-[#0e0e0f] border border-blue-500/50 rounded px-2 py-0.5 text-xs font-sans text-white focus:outline-none focus:ring-1 focus:ring-blue-500 w-48 sm:w-64"
+                        autoFocus
+                      />
+                      <button
+                        onClick={saveGroupName}
+                        className="p-1 bg-emerald-600 hover:bg-emerald-500 rounded text-white transition-colors cursor-pointer animate-fade-in"
+                        title="Save Group Name"
+                      >
+                        <Check className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={() => setIsEditingName(false)}
+                        className="p-1 bg-white/5 hover:bg-white/10 rounded text-gray-400 transition-colors cursor-pointer"
+                        title="Cancel"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-sm font-sans font-extrabold text-white tracking-wide">
+                        {activeGroup.name}
+                      </h3>
+                      <button
+                        onClick={startEditing}
+                        className="p-1 text-gray-400 hover:text-blue-400 transition-colors cursor-pointer"
+                        title="Rename Group"
+                      >
+                        <Edit2 className="w-3 h-3" />
+                      </button>
+                    </div>
+                  )}
+                  <span className="text-[10px] text-gray-400 mt-0.5 font-mono">
+                    {animations.filter(a => a.groupId === activeGroupId).length} items &bull; {activeGroup.fileSize || '0 KB'}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              {/* Extract Selected button */}
+              {selectedAnimIds.length > 0 && (
+                <button
+                  onClick={() => {
+                    if (onExtractAnimsFromGroup) {
+                      onExtractAnimsFromGroup(selectedAnimIds);
+                    }
+                  }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-500/10 hover:bg-blue-600 border border-blue-500/20 hover:border-blue-500 text-blue-400 hover:text-white rounded-lg text-xs font-semibold font-sans cursor-pointer transition-all"
+                  title="Extract selected animations from this group back to the main library"
+                >
+                  <FolderMinus className="w-3.5 h-3.5" />
+                  <span>Extract Selected ({selectedAnimIds.length})</span>
+                </button>
+              )}
+
+              {/* Dissolve Group button */}
+              <button
+                onClick={() => {
+                  if (onDissolveGroup && window.confirm('Are you sure you want to dissolve this group? All animations inside will remain intact and return to the main library view.')) {
+                    onDissolveGroup(activeGroupId);
+                  }
+                }}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-red-500/10 hover:bg-red-600 border border-red-500/20 hover:border-red-500 text-red-400 hover:text-white rounded-lg text-xs font-semibold font-sans cursor-pointer transition-all"
+                title="Dissolve group and return all contents to the main library"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Dissolve Group</span>
+              </button>
+            </div>
+          </div>
+        );
+      })()}
+
       {/* Grid of Cards */}
       <div className="flex-1 overflow-y-auto p-4 scrollbar-thin scrollbar-thumb-white/5" id="anim-cards-grid-container">
         {isLoading ? (
@@ -503,18 +799,40 @@ export default function AnimationGrid({
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4" id="anim-cards-grid">
-            {filteredAnims.map((anim) => (
+            {filteredAnims.map((anim, index) => (
               <AnimationCard
                 key={anim.id}
                 anim={anim}
                 isSelected={selectedAnimId === anim.id}
-                selectedAnimIds={selectedAnimId ? [selectedAnimId] : []}
-                onSelect={() => {
-                  onSelectAnim(selectedAnimId === anim.id ? null : anim.id);
-                  setQuickViewAnim(anim);
+                selectedAnimIds={selectedAnimIds}
+                onSelect={(e) => {
+                  const isCtrl = e.ctrlKey || e.metaKey;
+                  const isShift = e.shiftKey;
+
+                  if (isShift && lastClickedAnimId) {
+                    const startIdx = filteredAnims.findIndex(a => a.id === lastClickedAnimId);
+                    const endIdx = index;
+                    if (startIdx !== -1 && endIdx !== -1) {
+                      const minIdx = Math.min(startIdx, endIdx);
+                      const maxIdx = Math.max(startIdx, endIdx);
+                      const rangeIds = filteredAnims.slice(minIdx, maxIdx + 1).map(a => a.id);
+                      
+                      const newSelection = new Set(selectedAnimIds);
+                      rangeIds.forEach(id => newSelection.add(id));
+                      onSelectMultipleAnims(Array.from(newSelection));
+                    }
+                  } else if (isCtrl) {
+                    onToggleSelectAnim(anim.id, true);
+                    setLastClickedAnimId(anim.id);
+                  } else {
+                    onToggleSelectAnim(anim.id, false);
+                    setQuickViewAnim(selectedAnimId === anim.id ? null : anim);
+                    setLastClickedAnimId(anim.id);
+                  }
                 }}
                 onToggleFavorite={() => onToggleFavorite(anim.id)}
                 onRescan={onRescanAnim}
+                onEnterGroup={() => onEnterGroup?.(anim.id)}
               />
             ))}
           </div>

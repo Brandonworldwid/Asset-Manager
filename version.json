@@ -1,20 +1,20 @@
 {
-  "version": "2.2.0",
+  "version": "2.3.0",
   "releaseDate": "2026-06-27",
-  "url": "https://github.com/bvermaak2008/megascans-organizer/releases/download/v2.2.0/MegascansOrganizer.exe",
+  "url": "https://github.com/bvermaak2008/megascans-organizer/releases/download/v2.3.0/MegascansOrganizer.exe",
   "whatsNew": [
-    "Added dedicated Unreal Engine Animation Scanner support for both .uasset and .ueasset file extensions!",
-    "Implemented automated metadata extraction for animation assets, retrieving file size, modification date, bones/skeleton name, frame counts, FPS, and locomotion category.",
-    "Created a dedicated 'AnimData' local database storage to cache scanned animations and prevent repetitive heavy disk parsing.",
-    "Added individual asset Rescan controls allowing users to force-update specific animations on demand."
+    "Added Interactive Animation Group Sub-View allowing users to expand folders and interact directly with grouped assets.",
+    "Implemented Custom Animation Group Naming with an inline editor supporting smooth mouse interaction and keyboard shortcuts (Enter/Escape).",
+    "Added a Dissolve Group action to dissolve animation groups completely and return all sequences back to the main library.",
+    "Implemented Extract Selected animations action to extract specific animations from a folder back to the top-level main library."
   ],
   "improvements": [
-    "Integrated the high-performance multi-column layout for Unreal Animations with lazy-loaded grid elements.",
-    "Refined sidebar navigation with a new Unreal Animation Library view, fully independent of the 3D and 2D sections.",
-    "Enhanced file scanner logging to show animation-specific parsing information in real-time."
+    "Designed a premium sub-header banner specifically for Animation Groups featuring custom metadata counters (item counts, size, etc.) and direct actions.",
+    "Integrated double-click and custom hover overlays for animation groups to seamlessly open folder views.",
+    "Optimized animation group sizing and metadata propagation dynamically updating parent group properties upon animation extraction."
   ],
   "fixes": [
-    "Fixed a React lazy-loading issue on grid elements where card visual offsets could occur under rapid scroll.",
-    "Resolved import resolution warnings for motion/react layout wrappers."
+    "Resolved state management issue to safely update selected animation listings during group transitions.",
+    "Prevented parent group cards from showing up inside sub-view folder grids."
   ]
 }

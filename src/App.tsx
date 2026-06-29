@@ -117,6 +117,7 @@ export default function App() {
   const [libraryMode, setLibraryMode] = useState<'3d' | '2d' | 'anim'>('3d');
   const [animations, setAnimations] = useState<any[]>([]);
   const [selectedAnimId, setSelectedAnimId] = useState<string | null>(null);
+  const [selectedAnimIds, setSelectedAnimIds] = useState<string[]>([]);
   const [isAnimLoading, setIsAnimLoading] = useState<boolean>(false);
   const [customMoodboards, setCustomMoodboards] = useState<string[]>(() => {
     const saved = localStorage.getItem('megascan_custom_moodboards');
@@ -773,6 +774,180 @@ export default function App() {
     setSelectedAssetId(null);
   };
 
+  const handleToggleSelectAnim = (id: string, isCtrl: boolean) => {
+    if (isCtrl) {
+      setSelectedAnimIds((prev) => {
+        const exists = prev.includes(id);
+        const next = exists ? prev.filter((x) => x !== id) : [...prev, id];
+        setSelectedAnimId(null);
+        return next;
+      });
+    } else {
+      setSelectedAnimIds([id]);
+      setSelectedAnimId(id);
+    }
+  };
+
+  const handleSelectMultipleAnims = (ids: string[]) => {
+    setSelectedAnimIds(ids);
+    setSelectedAnimId(null);
+  };
+
+  const handleBatchFavoriteAnim = () => {
+    setAnimations((prev) => {
+      const selectedAnims = prev.filter(a => selectedAnimIds.includes(a.id));
+      const hasUnfavorited = selectedAnims.some(a => !(a.categories || []).includes('cat-favorites'));
+      
+      const updated = prev.map(anim => {
+        if (selectedAnimIds.includes(anim.id)) {
+          const categories = anim.categories || [];
+          const updatedCategories = hasUnfavorited
+            ? Array.from(new Set([...categories, 'cat-favorites']))
+            : categories.filter(c => c !== 'cat-favorites');
+          return { ...anim, categories: updatedCategories };
+        }
+        return anim;
+      });
+      dbSet('megascan_animations', updated);
+      return updated;
+    });
+    notify(`Toggled favorites for ${selectedAnimIds.length} animations`);
+  };
+
+  const handleBatchDeleteAnim = () => {
+    setAnimations((prev) => {
+      const updated = prev.filter(a => !selectedAnimIds.includes(a.id));
+      dbSet('megascan_animations', updated);
+      return updated;
+    });
+    notify(`Deleted ${selectedAnimIds.length} animations.`);
+    setSelectedAnimIds([]);
+    setSelectedAnimId(null);
+  };
+
+  const handleBatchRemoveFromManagerAnim = () => {
+    const toRemove = animations.filter((a) => selectedAnimIds.includes(a.id));
+    setEvictedAssetPaths((prev) => {
+      const next = [...prev];
+      toRemove.forEach((a) => {
+        if (!next.includes(a.scannedPath)) {
+          next.push(a.scannedPath);
+        }
+      });
+      localStorage.setItem('megascan_evicted', JSON.stringify(next));
+      return next;
+    });
+    
+    setAnimations((prev) => {
+      const updated = prev.filter((a) => !selectedAnimIds.includes(a.id));
+      dbSet('megascan_animations', updated);
+      return updated;
+    });
+    notify(`Removed ${selectedAnimIds.length} animations from Manager.`);
+    setSelectedAnimIds([]);
+    setSelectedAnimId(null);
+  };
+
+  const handleGroupAnims = () => {
+    const selected = animations.filter(a => selectedAnimIds.includes(a.id));
+    if (selected.length < 2) return;
+    
+    const groupId = `anim-group-${Math.random().toString(36).substring(2, 8)}`;
+    const newGroupAnim: any = {
+      id: groupId,
+      name: `Anim Group (${selected.length} items)`,
+      type: 'anim',
+      sizeBytes: selected.reduce((sum, a) => sum + (a.sizeBytes || 0), 0),
+      fileSize: formatSize(selected.reduce((sum, a) => sum + (a.sizeBytes || 0), 0)),
+      tags: ['group', 'anim-group'],
+      categories: selected[0].categories || [],
+      scannedPath: selected[0].scannedPath,
+      dateAdded: new Date().toISOString(),
+      isGroup: true,
+      frameCount: selected.reduce((max, a) => Math.max(max, a.frameCount || 0), 0),
+      duration: selected.reduce((max, a) => Math.max(max, a.duration || 0), 0),
+      fps: selected[0].fps,
+      description: `Group of ${selected.length} animations`,
+      skeletonName: selected[0].skeletonName,
+    };
+
+    setAnimations(prev => {
+      const updated = prev.map(a => selectedAnimIds.includes(a.id) ? { ...a, groupId } : a);
+      const newAnimations = [newGroupAnim, ...updated];
+      dbSet('megascan_animations', newAnimations);
+      return newAnimations;
+    });
+
+    setSelectedAnimIds([]);
+    setSelectedAnimId(null);
+    notify(`Grouped ${selected.length} animations into a single card.`);
+  };
+
+  const handleRenameAnimGroup = (groupId: string, newName: string) => {
+    setAnimations((prev) => {
+      const updated = prev.map((a) => (a.id === groupId ? { ...a, name: newName } : a));
+      dbSet('megascan_animations', updated);
+      return updated;
+    });
+    notify(`Group renamed to "${newName}"`);
+  };
+
+  const handleDissolveAnimGroup = (groupId: string) => {
+    setAnimations((prev) => {
+      const updated = prev
+        .filter((a) => a.id !== groupId)
+        .map((a) => (a.groupId === groupId ? { ...a, groupId: undefined } : a));
+      dbSet('megascan_animations', updated);
+      return updated;
+    });
+    setActiveGroupId(null);
+    setSelectedAnimIds([]);
+    setSelectedAnimId(null);
+    notify('Group dissolved. All animations returned to main library.');
+  };
+
+  const handleExtractAnimsFromGroup = (animIds: string[]) => {
+    setAnimations((prev) => {
+      let updated = prev.map((a) => (animIds.includes(a.id) ? { ...a, groupId: undefined } : a));
+      
+      if (activeGroupId) {
+        const remainingInGroup = updated.filter((a) => a.groupId === activeGroupId);
+        if (remainingInGroup.length === 0) {
+          updated = updated.filter((a) => a.id !== activeGroupId);
+          setActiveGroupId(null);
+          notify('All items extracted. Group dissolved.');
+        } else if (remainingInGroup.length === 1) {
+          const lastItem = remainingInGroup[0];
+          updated = updated
+            .filter((a) => a.id !== activeGroupId)
+            .map((a) => (a.id === lastItem.id ? { ...a, groupId: undefined } : a));
+          setActiveGroupId(null);
+          notify('Only 1 item left. Group dissolved and last item extracted.');
+        } else {
+          updated = updated.map((a) => {
+            if (a.id === activeGroupId) {
+              return {
+                ...a,
+                name: a.name.startsWith('Anim Group') 
+                  ? `Anim Group (${remainingInGroup.length} items)` 
+                  : a.name,
+                description: `Group of ${remainingInGroup.length} animations`,
+                sizeBytes: remainingInGroup.reduce((sum, item) => sum + (item.sizeBytes || 0), 0),
+                fileSize: formatSize(remainingInGroup.reduce((sum, item) => sum + (item.sizeBytes || 0), 0)),
+              };
+            }
+            return a;
+          });
+          notify(`Extracted ${animIds.length} animations back to the library.`);
+        }
+      }
+      dbSet('megascan_animations', updated);
+      return updated;
+    });
+    setSelectedAnimIds([]);
+    setSelectedAnimId(null);
+  };
+
   const handleBatchDelete = () => {
     const selectedAssets = assets.filter((a) => selectedAssetIds.includes(a.id));
     const groupKeysToDelete = new Set(selectedAssets.map((a) => getAssetGroupKey(a)));
@@ -1060,6 +1235,13 @@ export default function App() {
   });
 
   const displayedAnimations = animations.filter((anim) => {
+    // Filter by group visibility
+    if (activeGroupId) {
+      if (anim.groupId !== activeGroupId) return false;
+    } else {
+      if (anim.groupId) return false;
+    }
+
     if (activeCategoryId === 'cat-all') {
       return true;
     }
@@ -1214,7 +1396,7 @@ export default function App() {
           </AnimatePresence>
 
           {/* Card Grid view */}
-          {activeGroupId && (
+          {activeGroupId && libraryMode !== 'anim' && (
             <div className="px-5 py-3 border-b border-white/5 bg-[#121214] flex items-center gap-3">
               <button
                 onClick={() => {
@@ -1237,10 +1419,18 @@ export default function App() {
             <AnimationGrid
               animations={displayedAnimations}
               selectedAnimId={selectedAnimId}
+              selectedAnimIds={selectedAnimIds}
               onSelectAnim={setSelectedAnimId}
+              onToggleSelectAnim={handleToggleSelectAnim}
+              onSelectMultipleAnims={handleSelectMultipleAnims}
               onToggleFavorite={handleToggleAnimFavorite}
               onRescanAnim={handleRescanAnim}
               isLoading={isAnimLoading}
+              activeGroupId={activeGroupId}
+              onEnterGroup={setActiveGroupId}
+              onRenameGroup={handleRenameAnimGroup}
+              onDissolveGroup={handleDissolveAnimGroup}
+              onExtractAnimsFromGroup={handleExtractAnimsFromGroup}
             />
           ) : (
             <AssetGrid
@@ -1296,7 +1486,7 @@ export default function App() {
 
       {/* Floating Batch Actions Bar */}
       <AnimatePresence>
-        {selectedAssetIds.length > 1 && (
+        {libraryMode !== 'anim' && selectedAssetIds.length > 1 && (
           <motion.div
             initial={{ y: 100, x: '-50%', opacity: 0 }}
             animate={{ y: 0, x: '-50%', opacity: 1 }}
@@ -1366,6 +1556,85 @@ export default function App() {
             <button
               onClick={() => setShowBatchEditModal(true)}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 border border-blue-500 text-white hover:bg-blue-500 transition-all font-bold font-sans text-[11px] cursor-pointer"
+            >
+              <SlidersHorizontal className="w-3.5 h-3.5" />
+              <span>Batch Edit</span>
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Floating Batch Actions Bar (Animations) */}
+      <AnimatePresence>
+        {libraryMode === 'anim' && selectedAnimIds.length > 1 && (
+          <motion.div
+            initial={{ y: 100, x: '-50%', opacity: 0 }}
+            animate={{ y: 0, x: '-50%', opacity: 1 }}
+            exit={{ y: 100, x: '-50%', opacity: 0 }}
+            transition={{ type: 'spring', damping: 20, stiffness: 200 }}
+            className="fixed bottom-6 left-1/2 bg-[#121214]/95 border border-blue-500/35 backdrop-blur-md px-5 py-3.5 rounded-2xl shadow-2xl shadow-blue-500/10 z-40 flex items-center gap-4 text-xs font-sans min-w-[500px]"
+            id="floating-batch-bar-anim"
+          >
+            <div className="flex flex-col border-r border-white/10 pr-4">
+              <span className="font-mono font-bold text-blue-400">{selectedAnimIds.length} Selected</span>
+              <span className="text-[10px] text-gray-400 mt-0.5">{formatSize(animations.filter(a => selectedAnimIds.includes(a.id)).reduce((sum, a) => sum + (a.sizeBytes || 0), 0))}</span>
+              <button
+                onClick={() => {
+                  setSelectedAnimIds([]);
+                  setSelectedAnimId(null);
+                }}
+                className="text-[9px] text-red-400 hover:text-red-300 font-extrabold uppercase tracking-wider transition-colors mt-1.5 text-left flex items-center gap-1 cursor-pointer"
+                title="Deselect all selected animations"
+              >
+                <X className="w-2.5 h-2.5" />
+                <span>Deselect</span>
+              </button>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleBatchDeleteAnim}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-600/10 hover:bg-red-600 border border-red-500/20 hover:border-red-500 text-red-400 hover:text-white transition-all font-semibold font-sans cursor-pointer"
+                title="Delete from library"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Delete</span>
+              </button>
+
+              <button
+                onClick={handleBatchRemoveFromManagerAnim}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/10 hover:bg-amber-600 border border-amber-500/20 hover:border-amber-500 text-amber-400 hover:text-white transition-all font-semibold font-sans cursor-pointer"
+                title="Remove from Manager (Exclude from future scanning)"
+              >
+                <FolderX className="w-3.5 h-3.5" />
+                <span>Remove from Manager</span>
+              </button>
+
+              <button
+                onClick={handleBatchFavoriteAnim}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-yellow-500/10 hover:bg-yellow-600 border border-yellow-500/20 hover:border-yellow-500 text-yellow-400 hover:text-white transition-all font-semibold font-sans cursor-pointer"
+                title="Toggle favorite status"
+              >
+                <Star className="w-3.5 h-3.5" />
+                <span>Favorites</span>
+              </button>
+
+              <button
+                onClick={handleGroupAnims}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-500/10 hover:bg-indigo-600 border border-indigo-500/20 hover:border-indigo-500 text-indigo-400 hover:text-white transition-all font-semibold font-sans cursor-pointer"
+                title="Group selected animations"
+              >
+                <Layers className="w-3.5 h-3.5" />
+                <span>Group Anims</span>
+              </button>
+            </div>
+
+            <span className="text-white/10">|</span>
+
+            <button
+              onClick={() => notify("Batch edit for animations is not yet implemented.")}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600/50 border border-blue-500/50 text-white/50 cursor-not-allowed transition-all font-bold font-sans text-[11px]"
+              title="Batch Edit (Coming Soon)"
             >
               <SlidersHorizontal className="w-3.5 h-3.5" />
               <span>Batch Edit</span>
